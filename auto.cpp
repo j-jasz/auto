@@ -215,11 +215,8 @@ int main() {
             row3Height = max_y - 26; // Update row3Height
             CommWin = newwin(row3Height, 30, 26, 0);
 
-            // Redraw borders
             wrapBox(RightWin, AnimWin, TabsWin, CommWin);
-
             drawFullView(TabsWin, RightWin, CommWin, data, selectedTab, selectedRecord);
-
             wrapRefresh(RightWin, AnimWin, TabsWin, CommWin);
         } else if (c == '\t') {
             selectedTab = (selectedTab + 1) % data.tabNames.size();
@@ -244,7 +241,6 @@ int main() {
                 endwin(); // Exit ncurses mode permanently
                 //~ std::string command = data.tabRecords[selectedTab][selectedRecord];
                 std::string command = data.tabRecords[selectedTab][selectedRecord].command;
-
                 // Create a script in /tmp
                 std::string scriptPath = "/tmp/ncurses_script.sh";
                 std::ofstream scriptFile(scriptPath);
@@ -257,15 +253,12 @@ int main() {
                     scriptFile << "eval \"$edited_text\"\n";
                     scriptFile << "exit\n";  // Ensure the shell exits cleanly after execution
                     scriptFile.close();
-
                     // Make the script executable
                     std::string chmodCmd = "chmod +x " + scriptPath;
                     system(chmodCmd.c_str());
-
                     // Run the script
                     std::string runCmd = "./" + scriptPath.substr(scriptPath.find_last_of('/') + 1);
                     system(("cd /tmp && " + runCmd).c_str());
-
                     // Remove the script
                     std::string rmCmd = "rm " + scriptPath;
                     system(rmCmd.c_str());
