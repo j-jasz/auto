@@ -146,6 +146,45 @@ int main() {
             selectedCommand = (selectedCommand + 1) % data.commands[selectedTab].size();
             drawCommands(rightWin, data, selectedTab, selectedCommand);
             wrefresh(rightWin);
+        } else if (c == '\n') { // Enter key pressed
+            if (selectedTab == data.tabs.size() - 1) { // Last tab (Templates)
+                endwin(); // Exit ncurses mode permanently
+                std::string command = data.commands[selectedTab][selectedCommand];
+
+                // Create a script in /tmp
+                std::string scriptPath = "/tmp/ncurses_script.sh";
+                std::ofstream scriptFile(scriptPath);
+
+                if (scriptFile.is_open()) {
+                    // Write the script content
+                    scriptFile << "#!/bin/bash\n";
+                    scriptFile << "text=\"" << command << "\"\n";
+                    scriptFile << "read -e -p \"\" -i \"$text\" edited_text\n";
+                    scriptFile << "eval \"$edited_text\"\n";
+                    scriptFile << "exit\n";  // Ensure the shell exits cleanly after execution
+                    scriptFile.close();
+
+                    // Make the script executable
+                    std::string chmodCmd = "chmod +x " + scriptPath;
+                    system(chmodCmd.c_str());
+
+                    // Run the script
+                    std::string runCmd = "./" + scriptPath.substr(scriptPath.find_last_of('/') + 1);
+                    system(("cd /tmp && " + runCmd).c_str());
+
+                    // Optionally remove the script
+                    std::string rmCmd = "rm " + scriptPath;
+                    system(rmCmd.c_str());
+                } else {
+                    std::cerr << "Failed to create script file." << std::endl;
+                }
+                return 0; // Exit the program
+            } else { // Execute command directly for non-template tabs
+                endwin(); // Exit ncurses mode
+                std::string command = data.commands[selectedTab][selectedCommand];
+                system(command.c_str()); // Execute the command in the terminal
+                return 0; // Exit the program
+            }
         }
     }
 
