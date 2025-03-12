@@ -1,100 +1,85 @@
 #include <ncurses.h>
 #include <vector>
 #include <string>
-//~ #include <cstdlib>  // For system()
-//~ #include <unistd.h> // For fork() and exec()
-//~ #include <sys/types.h>  // For pid_t
-//~ #include <sys/wait.h>   // For wait()
-
-// needed for dynamic row amount
-#include <stdlib.h>
-#include <string.h>
+#include <iostream>
+#include <fstream>
 
 // Add tabs
-const char *tabNames[] = {
-    "Utils",
-    "Image",
-    "Blender",
-    "Stable Diffusion",
-    "Video",
-    "PDFs",
-    "Sound",
-    "Templates"
+const std::string tabNames[] = {
+    "Tab 1",
+    "Tab 2",
+    "Templates",
 };
 
- // Add commands for each tab
-const char *commands1[] = {"Cmd1", "Cmd2", "test1"};
-const char *commands2[] = {"Cmd4", "Cmd5test2"};
-const char *commands3[] = {"Cmd6", "Cmd7", "sertghCmd8", "Cmd9"};
-const char *commands4[] = {"Cmd10"};
-const char *commands5[] = {"Cmd11", "Cmd12", "Cmeargd13", "Cmd14", "Cmd15"};
-const char *commands6[] = {"Cmdaerg16"};
-const char *commands7[] = {"Cmd17", "Cmdh4t5ty518"};
-const char *commands8[] = {"Cmd19", "Cmd20", "Cm35efefd21"};
+// Add commands
+std::vector<std::string> commands1 = {
+    "sudo apt update",
+    "Cmd2",
+    "Cmd3",
+    "Cmd4"
+};
+std::vector<std::string> commands2 = {
+    "Cmd5",
+    "Cmd6"
+};
+std::vector<std::string> commands3 = {
+    "Cmd7",
+    "Cmd8",
+    "sudo apt update"
+};
 
 // Structure to hold tab and command data
-typedef struct {
-    char **tabs;
-    int numTabs;
-    char ***commands;
-    int *numCommands;
-    int numCommandSets;
-} TabData;
+struct TabData {
+    std::vector<std::string> tabs;
+    std::vector<std::vector<std::string>> commands;
+};
 
 // Function to initialize tab data
-TabData *initTabData(int numTabs, int numCommandSets) {
-    TabData *data = new TabData;
-    data->tabs = new char *[numTabs];
-    data->numTabs = numTabs;
-    data->commands = new char **[numCommandSets];
-    data->numCommands = new int[numCommandSets];
-    data->numCommandSets = numCommandSets;
-
+TabData initTabData(int numTabs, int numCommandSets) {
+    TabData data;
+    data.tabs.resize(numTabs);
+    data.commands.resize(numCommandSets);
     return data;
 }
 
 // Function to add a tab
-void addTab(TabData *data, int tabIndex, const char *tabName) {
-    data->tabs[tabIndex] = strdup(tabName); // Allocate memory for the tab name
+void addTab(TabData &data, int tabIndex, const std::string &tabName) {
+    data.tabs[tabIndex] = tabName;
 }
 
 // Function to add commands to a command set
-void addCommands(TabData *data, int commandSetIndex, int numCommands, const char **commands) {
-    data->commands[commandSetIndex] = new char *[numCommands];
-    data->numCommands[commandSetIndex] = numCommands;
-    for (int i = 0; i < numCommands; i++) {
-        data->commands[commandSetIndex][i] = strdup(commands[i]);
-    }
+void addCommands(TabData &data, int commandSetIndex, const std::vector<std::string> &commands) {
+    data.commands[commandSetIndex] = commands;
 }
 
 // Function to draw tabs
-void drawTabs(WINDOW *leftWin, TabData *data, int selectedTab) {
-    werase(leftWin); // Clear the window
-    for (int i = 0; i < data->numTabs; i++) {
+void drawTabs(WINDOW *leftWin, const TabData &data, int selectedTab) {
+    werase(leftWin);
+    for (int i = 0; i < data.tabs.size(); i++) {
         if (i == selectedTab) {
-            wattron(leftWin, A_REVERSE); // Highlight selected tab
+            wattron(leftWin, A_REVERSE);
         }
-        mvwprintw(leftWin, i, 1, "%s", data->tabs[i]);
+        mvwprintw(leftWin, i, 1, "%s", data.tabs[i].c_str());
         if (i == selectedTab) {
-            wattroff(leftWin, A_REVERSE); // Turn off highlighting
+            wattroff(leftWin, A_REVERSE);
         }
     }
-    wrefresh(leftWin); // Refresh the window
+    wrefresh(leftWin);
 }
 
 // Function to draw commands
-void drawCommands(WINDOW *rightWin, TabData *data, int selectedTab, int selectedCommand) {
-    werase(rightWin); // Clear the window
-    for (int i = 0; i < data->numCommands[selectedTab]; i++) {
+void drawCommands(WINDOW *rightWin, const TabData &data, int selectedTab, int selectedCommand) {
+    werase(rightWin);
+    for (int i = 0; i < data.commands[selectedTab].size(); i++) {
         if (i == selectedCommand) {
-            wattron(rightWin, A_REVERSE); // Highlight selected command
+            wattron(rightWin, A_REVERSE);
         }
-        mvwprintw(rightWin, i, 1, "%s", data->commands[selectedTab][i]);
+        mvwprintw(rightWin, i, 1, "%s", data.commands[selectedTab][i].c_str());
         if (i == selectedCommand) {
-            wattroff(rightWin, A_REVERSE); // Turn off highlighting
+            wattroff(rightWin, A_REVERSE);
         }
     }
-    wrefresh(rightWin); // Refresh the window
+    wrefresh(rightWin);
 }
 
 int main() {
@@ -114,26 +99,24 @@ int main() {
     keypad(leftWin, TRUE);
     keypad(rightWin, TRUE);
 
-    TabData *data = initTabData(8, 8); // Initialize with 8 tabs and command sets
+    // Initialize a TabData object with 3 tabs and 3 command sets.
+    TabData data = initTabData(3, 3);
 
     // Add tabs
-    for (int i = 0; i < data->numTabs; i++) {
+    for (int i = 0; i < data.tabs.size(); i++) {
         addTab(data, i, tabNames[i]);
     }
 
-    addCommands(data, 0, sizeof(commands1) / sizeof(commands1[0]), commands1);
-    addCommands(data, 1, sizeof(commands2) / sizeof(commands2[0]), commands2);
-    addCommands(data, 2, sizeof(commands3) / sizeof(commands3[0]), commands3);
-    addCommands(data, 3, sizeof(commands4) / sizeof(commands4[0]), commands4);
-    addCommands(data, 4, sizeof(commands5) / sizeof(commands5[0]), commands5);
-    addCommands(data, 5, sizeof(commands6) / sizeof(commands6[0]), commands6);
-    addCommands(data, 6, sizeof(commands7) / sizeof(commands7[0]), commands7);
-    addCommands(data, 7, sizeof(commands8) / sizeof(commands8[0]), commands8);
+    // Add commands to each tab.
+    addCommands(data, 0, commands1);
+    addCommands(data, 1, commands2);
+    addCommands(data, 2, commands3);
 
-    // Initial Tab and Cmd state
+    // Initialize the initial state of the tab and command selection.
     int selectedTab = 0;
     int selectedCommand = 0;
 
+    // DO NOT REMOVE
     refresh();
 
     // Initial draw
@@ -149,34 +132,25 @@ int main() {
     int c;
     while ((c = getch()) != 'q') {
         if (c == '\t') {
-            selectedTab = (selectedTab + 1) % data->numTabs;
-            selectedCommand = 0; // Reset command selection
+            selectedTab = (selectedTab + 1) % data.tabs.size();
+            selectedCommand = 0;
             drawTabs(leftWin, data, selectedTab);
             drawCommands(rightWin, data, selectedTab, selectedCommand);
+            wrefresh(leftWin);
+            wrefresh(rightWin);
         } else if (c == KEY_UP) {
-            selectedCommand = (selectedCommand - 1 + data->numCommands[selectedTab]) % data->numCommands[selectedTab];
+            selectedCommand = (selectedCommand - 1 + data.commands[selectedTab].size()) % data.commands[selectedTab].size();
             drawCommands(rightWin, data, selectedTab, selectedCommand);
+            wrefresh(rightWin);
         } else if (c == KEY_DOWN) {
-            selectedCommand = (selectedCommand + 1) % data->numCommands[selectedTab];
+            selectedCommand = (selectedCommand + 1) % data.commands[selectedTab].size();
             drawCommands(rightWin, data, selectedTab, selectedCommand);
+            wrefresh(rightWin);
         }
     }
 
-    // Clean up dynamically allocated memory
-    for (int i = 0; i < data->numTabs; i++) {
-        delete[] data->tabs[i]; // Assuming tabs[i] was allocated with new[]
-    }
-    delete[] data->tabs;
-
-    for (int i = 0; i < data->numCommandSets; i++) {
-        for (int j = 0; j < data->numCommands[i]; j++) {
-            delete[] data->commands[i][j]; // Assuming commands[i][j] was allocated with new[]
-        }
-        delete[] data->commands[i];
-    }
-    delete[] data->commands;
-    delete[] data->numCommands;
-    delete data;
+    delwin(leftWin);
+    delwin(rightWin);
 
     endwin();
     return 0;
