@@ -3,83 +3,188 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 
 // Add tabs
 const std::string tabNames[] = {
     "Tab 1",
     "Tab 2",
-    "Templates",
+    "Tab 3",
 };
 
-// Add commands
-std::vector<std::string> commands1 = {
-    "sudo apt update",
-    "Cmd2",
-    "Cmd3",
-    "Cmd4"
+// Define the record structure
+struct Record {
+    char type;
+    std::string label;
+    std::string command;
+    std::string comment;
+    std::string color;
 };
-std::vector<std::string> commands2 = {
-    "Cmd5",
-    "Cmd6"
-};
-std::vector<std::string> commands3 = {
-    "Cmd7",
-    "Cmd8",
-    "sudo apt update"
+// Spacer record
+Record spacer = {
+    .type = ' ',
+    .label = "",
+    .command = "",
+    .comment = "",
+    .color = ""
 };
 
-// Structure to hold tab and command data
+Record record1 = {
+    .type = 'S',
+    .label = "Label1",
+    .command = "Command1",
+    .comment = "This is a comment for Label1 Lorem Ipsum.",
+    .color = "Red"
+};
+
+Record record2 = {
+    .type = 'T',
+    .label = "Label2",
+    .command = "Command2",
+    .comment = "This is a comment for Label2 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+    .color = "Blue"
+};
+
+Record record3 = {
+    .type = 'C',
+    .label = "Label3",
+    .command = "Command3",
+    .comment = "This is a comment for Label3 Lorem Ipsum",
+    .color = "Red"
+};
+
+Record record4 = {
+    .type = 'S',
+    .label = "Label4",
+    .command = "Command4",
+    .comment = "This is a comment for Label4 Lorem Ipsum",
+    .color = "Blue"
+};
+
+Record record5 = {
+    .type = 'S',
+    .label = "Label5",
+    .command = "Command5",
+    .comment = "This is a comment for Label5 Lorem Ipsum",
+    .color = "Red"
+};
+
+Record record6 = {
+    .type = 'T',
+    .label = "Label6",
+    .command = "Command6",
+    .comment = "This is a comment for Label6 Lorem Ipsum",
+    .color = "Blue"
+};
+
+Record record7 = {
+    .type = 'C',
+    .label = "Label7",
+    .command = "Command7",
+    .comment = "This is a comment for Label7 Lorem Ipsum",
+    .color = "Red"
+};
+
+Record record8 = {
+    .type = 'S',
+    .label = "Label8",
+    .command = "Command8",
+    .comment = "This is a comment for Label8 Lorem Ipsum",
+    .color = "Blue"
+};
+
 struct TabData {
-    std::vector<std::string> tabs;
-    std::vector<std::vector<std::string>> commands;
+    std::vector<std::string> tabNames;
+    std::vector<std::vector<Record>> tabRecords;
 };
 
-// Function to initialize tab data
-TabData initTabData(int numTabs, int numCommandSets) {
+TabData initTabData(int numTabs) {
     TabData data;
-    data.tabs.resize(numTabs);
-    data.commands.resize(numCommandSets);
+    data.tabNames.resize(numTabs);
+    data.tabRecords.resize(numTabs);
     return data;
 }
 
 // Function to add a tab
-void addTab(TabData &data, int tabIndex, const std::string &tabName) {
-    data.tabs[tabIndex] = tabName;
+void addTabName(TabData &data, int tabIndex, const std::string &tabName) {
+    data.tabNames[tabIndex] = tabName;
 }
 
-// Function to add commands to a command set
-void addCommands(TabData &data, int commandSetIndex, const std::vector<std::string> &commands) {
-    data.commands[commandSetIndex] = commands;
+// Function to add records to a tab
+void addRecordsToTab(TabData &data, int tabIndex, const std::vector<Record> &records) {
+    data.tabRecords[tabIndex] = records;
 }
 
 // Function to draw tabs
-void drawTabs(WINDOW *leftWin, const TabData &data, int selectedTab) {
-    werase(leftWin);
-    for (int i = 0; i < data.tabs.size(); i++) {
+void drawTabs(WINDOW *TabsWin, const TabData &data, int selectedTab) {
+    werase(TabsWin);
+    // Redraw borders
+    box(TabsWin, 0, 0);
+    // Print tab names inside the window, avoiding the borders
+    for (int i = 0; i < data.tabNames.size(); i++) {
         if (i == selectedTab) {
-            wattron(leftWin, A_REVERSE);
+            wattron(TabsWin, A_REVERSE); // Highlight selected tab
         }
-        mvwprintw(leftWin, i, 1, "%s", data.tabs[i].c_str());
+        // Print tab name starting from row 1 to avoid overwriting borders
+        mvwprintw(TabsWin, i + 2, 4, "%s", data.tabNames[i].c_str());
         if (i == selectedTab) {
-            wattroff(leftWin, A_REVERSE);
+            wattroff(TabsWin, A_REVERSE); // Remove highlight from selected tab
         }
     }
-    wrefresh(leftWin);
 }
 
-// Function to draw commands
-void drawCommands(WINDOW *rightWin, const TabData &data, int selectedTab, int selectedCommand) {
-    werase(rightWin);
-    for (int i = 0; i < data.commands[selectedTab].size(); i++) {
-        if (i == selectedCommand) {
-            wattron(rightWin, A_REVERSE);
+// Function to draw records
+void drawRecords(WINDOW *RightWin, const TabData &data, int selectedTab, int selectedRecord) {
+    // Clear the window's interior (not the borders)
+    werase(RightWin);
+    // Redraw borders
+    box(RightWin, 0, 0);
+    // Print records inside the window, avoiding the borders
+    for (int i = 0; i < data.tabRecords[selectedTab].size(); i++) {
+        // Print type without highlighting
+        mvwprintw(RightWin, i + 2, 4, "%c ", data.tabRecords[selectedTab][i].type);
+        if (i == selectedRecord) {
+            wattron(RightWin, A_REVERSE); // Highlight selected record
         }
-        mvwprintw(rightWin, i, 1, "%s", data.commands[selectedTab][i].c_str());
-        if (i == selectedCommand) {
-            wattroff(rightWin, A_REVERSE);
+        // Print label with highlighting if selected
+        mvwprintw(RightWin, i + 2, 7, "%s", data.tabRecords[selectedTab][i].label.data());
+        if (i == selectedRecord) {
+            wattroff(RightWin, A_REVERSE); // Remove highlight from selected record
         }
     }
-    wrefresh(rightWin);
+}
+// Function to draw comments
+void drawComments(WINDOW *CommWin, const TabData &data, int selectedTab, int selectedRecord) {
+    // Clear the window's interior (not the borders)
+    werase(CommWin);
+    // Redraw borders
+    box(CommWin, 0, 0);
+    // Get the dimensions of the window
+    int max_y, max_x;
+    getmaxyx(CommWin, max_y, max_x);
+    // Adjust max_x to account for the border and margin
+    max_x -= 2; // Subtract 2 for both borders
+    // Print the comment with wrapping
+    std::string comment = data.tabRecords[selectedTab][selectedRecord].comment;
+    int y = 1; // Start from the second line to avoid the top border
+    int x = 1; // Start from the second column to avoid the left border
+    while (!comment.empty()) {
+        // Find the next character that fits on this line
+        //~ size_t nextChar = std::min(max_x - x, comment.size());
+        size_t nextChar = std::min<size_t>(static_cast<size_t>(max_x - x), comment.size());
+        // Print the part of the comment that fits on this line
+        std::string line = comment.substr(0, nextChar);
+        mvwprintw(CommWin, y, x, "%s", line.c_str());
+        // Move to the next line
+        y++;
+        x = 1; // Reset x for the next line
+        // Remove the printed part from the comment
+        comment.erase(0, nextChar);
+        // Check if we've reached the bottom of the window
+        if (y >= max_y - 1) {
+            break; // Stop printing if we reach the bottom border
+        }
+    }
 }
 
 int main() {
@@ -88,68 +193,149 @@ int main() {
     cbreak();
     keypad(stdscr, TRUE);
     curs_set(FALSE);
+    refresh();
 
-    int height = LINES;
-    int leftWidth = 20;
-    int rightWidth = COLS - leftWidth;
+    // Get the dimensions of the terminal
+    int max_y, max_x;
+    getmaxyx(stdscr, max_y, max_x);
+    // Create windows
+    WINDOW *RightWin = newwin(max_y, max_x - 30, 0, 30);
+    WINDOW *AnimWin = newwin(13, 30, 0, 0);
+    WINDOW *TabsWin = newwin(13, 30, 13, 0);
+    int row3Height = max_y - 26; // Assuming row1 and row2 take up 26 lines
+    WINDOW *CommWin = newwin(row3Height, 30, 26, 0);
 
-    WINDOW *leftWin = newwin(height, leftWidth, 0, 0);
-    WINDOW *rightWin = newwin(height, rightWidth, 0, leftWidth);
+    box(RightWin, 0, 0);
+    box(AnimWin, 0, 0);
+    box(TabsWin, 0, 0);
+    box(CommWin, 0, 0);
 
-    keypad(leftWin, TRUE);
-    keypad(rightWin, TRUE);
+    wrefresh(RightWin);
+    wrefresh(AnimWin);
+    wrefresh(TabsWin);
+    wrefresh(CommWin);
+
+    keypad(TabsWin, TRUE);
+    keypad(RightWin, TRUE);
 
     // Initialize a TabData object with 3 tabs and 3 command sets.
-    TabData data = initTabData(3, 3);
+    TabData data = initTabData(3);
 
     // Add tabs
-    for (int i = 0; i < data.tabs.size(); i++) {
-        addTab(data, i, tabNames[i]);
+    for (int i = 0; i < data.tabNames.size(); i++) {
+        addTabName(data, i, tabNames[i]);
     }
 
+    // Add records to tabs
+    std::vector<Record> tab1Records = {
+        record1,
+        record2,
+        spacer,
+        record3,
+        record4
+    };
+    std::vector<Record> tab2Records = {
+        record5,
+        record6
+    };
+    std::vector<Record> tab3Records = {
+        record7,
+        record8
+    };
+
     // Add commands to each tab.
-    addCommands(data, 0, commands1);
-    addCommands(data, 1, commands2);
-    addCommands(data, 2, commands3);
+    //~ addCommands(data, 0, commands1);
+    //~ addCommands(data, 1, commands2);
+    //~ addCommands(data, 2, commands3);
+    addRecordsToTab(data, 0, tab1Records);
+    addRecordsToTab(data, 1, tab2Records);
+    addRecordsToTab(data, 2, tab3Records);
 
     // Initialize the initial state of the tab and command selection.
     int selectedTab = 0;
-    int selectedCommand = 0;
-
-    // DO NOT REMOVE
-    refresh();
+    int selectedRecord = 0;
 
     // Initial draw
-    drawTabs(leftWin, data, selectedTab);
-    drawCommands(rightWin, data, selectedTab, selectedCommand);
+    drawTabs(TabsWin, data, selectedTab);
+    drawRecords(RightWin, data, selectedTab, selectedRecord);
+    drawComments(CommWin, data, selectedTab, selectedRecord);
 
-    wrefresh(leftWin);
-    wrefresh(rightWin);
+    wrefresh(RightWin);
+    wrefresh(AnimWin);
+    wrefresh(TabsWin);
+    wrefresh(CommWin);
 
     //~ napms(2000); // Optional delay to observe initial draw
 
     // Key handling
     int c;
     while ((c = getch()) != 'q') {
-        if (c == '\t') {
-            selectedTab = (selectedTab + 1) % data.tabs.size();
-            selectedCommand = 0;
-            drawTabs(leftWin, data, selectedTab);
-            drawCommands(rightWin, data, selectedTab, selectedCommand);
-            wrefresh(leftWin);
-            wrefresh(rightWin);
+        if (c == KEY_RESIZE) {
+            // Handle resize
+            endwin(); // End curses mode temporarily
+            refresh(); // Refresh to get new terminal size
+            initscr(); // Restart curses mode
+
+            // Get new terminal dimensions
+            getmaxyx(stdscr, max_y, max_x);
+
+            // Recreate windows with new dimensions
+            delwin(RightWin);
+            delwin(AnimWin);
+            delwin(TabsWin);
+            delwin(CommWin);
+
+            RightWin = newwin(max_y, max_x - 30, 0, 30);
+            AnimWin = newwin(13, 30, 0, 0);
+            TabsWin = newwin(13, 30, 13, 0);
+            row3Height = max_y - 26; // Update row3Height
+            CommWin = newwin(row3Height, 30, 26, 0);
+
+            // Redraw borders
+            box(RightWin, 0, 0);
+            box(AnimWin, 0, 0);
+            box(TabsWin, 0, 0);
+            box(CommWin, 0, 0);
+
+            drawTabs(TabsWin, data, selectedTab);
+            drawRecords(RightWin, data, selectedTab, selectedRecord);
+            drawComments(CommWin, data, selectedTab, selectedRecord);
+
+            wrefresh(RightWin);
+            wrefresh(AnimWin);
+            wrefresh(TabsWin);
+            wrefresh(CommWin);
+        } else if (c == '\t') {
+            selectedTab = (selectedTab + 1) % data.tabNames.size();
+            selectedRecord = 0;
+            drawTabs(TabsWin, data, selectedTab);
+            drawRecords(RightWin, data, selectedTab, selectedRecord);
+            drawComments(CommWin, data, selectedTab, selectedRecord);
+            wrefresh(RightWin);
+            wrefresh(TabsWin);
+            wrefresh(CommWin);
         } else if (c == KEY_UP) {
-            selectedCommand = (selectedCommand - 1 + data.commands[selectedTab].size()) % data.commands[selectedTab].size();
-            drawCommands(rightWin, data, selectedTab, selectedCommand);
-            wrefresh(rightWin);
+            do {
+                selectedRecord = (selectedRecord - 1 + data.tabRecords[selectedTab].size()) % data.tabRecords[selectedTab].size();
+            } while (data.tabRecords[selectedTab][selectedRecord].type == ' '); // Skip spacers
+            drawRecords(RightWin, data, selectedTab, selectedRecord);
+            drawComments(CommWin, data, selectedTab, selectedRecord);
+            wrefresh(RightWin);
+            wrefresh(CommWin);
         } else if (c == KEY_DOWN) {
-            selectedCommand = (selectedCommand + 1) % data.commands[selectedTab].size();
-            drawCommands(rightWin, data, selectedTab, selectedCommand);
-            wrefresh(rightWin);
+            do {
+                selectedRecord = (selectedRecord + 1) % data.tabRecords[selectedTab].size();
+            } while (data.tabRecords[selectedTab][selectedRecord].type == ' '); // Skip spacers
+            drawRecords(RightWin, data, selectedTab, selectedRecord);
+            drawComments(CommWin, data, selectedTab, selectedRecord);
+            wrefresh(RightWin);
+            wrefresh(CommWin);
         } else if (c == '\n') { // Enter key pressed
-            if (selectedTab == data.tabs.size() - 1) { // Last tab (Templates)
+            //~ if (selectedTab == data.tabNames.size() - 1) { // Last tab (Templates)
+            if (data.tabRecords[selectedTab][selectedRecord].type == 'T') {
                 endwin(); // Exit ncurses mode permanently
-                std::string command = data.commands[selectedTab][selectedCommand];
+                //~ std::string command = data.tabRecords[selectedTab][selectedRecord];
+                std::string command = data.tabRecords[selectedTab][selectedRecord].command;
 
                 // Create a script in /tmp
                 std::string scriptPath = "/tmp/ncurses_script.sh";
@@ -172,7 +358,7 @@ int main() {
                     std::string runCmd = "./" + scriptPath.substr(scriptPath.find_last_of('/') + 1);
                     system(("cd /tmp && " + runCmd).c_str());
 
-                    // Optionally remove the script
+                    // Remove the script
                     std::string rmCmd = "rm " + scriptPath;
                     system(rmCmd.c_str());
                 } else {
@@ -181,15 +367,18 @@ int main() {
                 return 0; // Exit the program
             } else { // Execute command directly for non-template tabs
                 endwin(); // Exit ncurses mode
-                std::string command = data.commands[selectedTab][selectedCommand];
+                //~ std::string command = data.tabRecords[selectedTab][selectedRecord];
+                std::string command = data.tabRecords[selectedTab][selectedRecord].command;
                 system(command.c_str()); // Execute the command in the terminal
                 return 0; // Exit the program
             }
         }
     }
 
-    delwin(leftWin);
-    delwin(rightWin);
+    delwin(RightWin);
+    delwin(AnimWin);
+    delwin(TabsWin);
+    delwin(CommWin);
 
     endwin();
     return 0;
