@@ -1,3 +1,5 @@
+#include "records.hpp"
+
 #include <ncurses.h>
 #include <vector>
 #include <string>
@@ -12,85 +14,21 @@ const std::string tabNames[] = {
     "Tab 3",
 };
 
-// Define the record structure
-struct Record {
-    char type;
-    std::string label;
-    std::string command;
-    std::string comment;
-    std::string color;
+// Add records to tabs
+std::vector<Record> tab1Records = {
+    getRecord1(),
+    getRecord2(),
+    getSpacer(),
+    getRecord3(),
+    getRecord4()
 };
-// Spacer record
-Record spacer = {
-    .type = ' ',
-    .label = "",
-    .command = "",
-    .comment = "",
-    .color = ""
+std::vector<Record> tab2Records = {
+    getRecord5(),
+    getRecord6()
 };
-
-Record record1 = {
-    .type = 'S',
-    .label = "Label1",
-    .command = "Command1",
-    .comment = "This is a comment for Label1 Lorem Ipsum.",
-    .color = "Red"
-};
-
-Record record2 = {
-    .type = 'T',
-    .label = "Label2",
-    .command = "Command2",
-    .comment = "This is a comment for Label2 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    .color = "Blue"
-};
-
-Record record3 = {
-    .type = 'C',
-    .label = "Label3",
-    .command = "Command3",
-    .comment = "This is a comment for Label3 Lorem Ipsum",
-    .color = "Red"
-};
-
-Record record4 = {
-    .type = 'S',
-    .label = "Label4",
-    .command = "Command4",
-    .comment = "This is a comment for Label4 Lorem Ipsum",
-    .color = "Blue"
-};
-
-Record record5 = {
-    .type = 'S',
-    .label = "Label5",
-    .command = "Command5",
-    .comment = "This is a comment for Label5 Lorem Ipsum",
-    .color = "Red"
-};
-
-Record record6 = {
-    .type = 'T',
-    .label = "Label6",
-    .command = "Command6",
-    .comment = "This is a comment for Label6 Lorem Ipsum",
-    .color = "Blue"
-};
-
-Record record7 = {
-    .type = 'C',
-    .label = "Label7",
-    .command = "Command7",
-    .comment = "This is a comment for Label7 Lorem Ipsum",
-    .color = "Red"
-};
-
-Record record8 = {
-    .type = 'S',
-    .label = "Label8",
-    .command = "Command8",
-    .comment = "This is a comment for Label8 Lorem Ipsum",
-    .color = "Blue"
+std::vector<Record> tab3Records = {
+    getRecord7(),
+    getRecord8()
 };
 
 struct TabData {
@@ -187,6 +125,29 @@ void drawComments(WINDOW *CommWin, const TabData &data, int selectedTab, int sel
     }
 }
 
+// Templates and wrapper functions
+template<typename... Args>
+void wrapRefresh(Args... args) {
+    (wrefresh(args), ...);
+}
+template<typename... Args>
+void wrapDelete(Args... args) {
+    (delwin(args), ...);
+}
+template<typename... Args>
+void wrapBox(Args... args) {
+    (box(args, 0, 0), ...);
+}
+void drawFullView(WINDOW* TabsWin, WINDOW* RightWin, WINDOW* CommWin, TabData& data, int selectedTab, int selectedRecord) {
+    drawTabs(TabsWin, data, selectedTab);
+    drawRecords(RightWin, data, selectedTab, selectedRecord);
+    drawComments(CommWin, data, selectedTab, selectedRecord);
+}
+void drawRecordsAndComments(WINDOW* RightWin, WINDOW* CommWin, TabData& data, int selectedTab, int selectedRecord) {
+    drawRecords(RightWin, data, selectedTab, selectedRecord);
+    drawComments(CommWin, data, selectedTab, selectedRecord);
+}
+
 int main() {
     initscr();
     noecho();
@@ -205,15 +166,8 @@ int main() {
     int row3Height = max_y - 26; // Assuming row1 and row2 take up 26 lines
     WINDOW *CommWin = newwin(row3Height, 30, 26, 0);
 
-    box(RightWin, 0, 0);
-    box(AnimWin, 0, 0);
-    box(TabsWin, 0, 0);
-    box(CommWin, 0, 0);
-
-    wrefresh(RightWin);
-    wrefresh(AnimWin);
-    wrefresh(TabsWin);
-    wrefresh(CommWin);
+    wrapBox(RightWin, AnimWin, TabsWin, CommWin);
+    wrapRefresh(RightWin, AnimWin, TabsWin, CommWin);
 
     keypad(TabsWin, TRUE);
     keypad(RightWin, TRUE);
@@ -225,28 +179,7 @@ int main() {
     for (int i = 0; i < data.tabNames.size(); i++) {
         addTabName(data, i, tabNames[i]);
     }
-
-    // Add records to tabs
-    std::vector<Record> tab1Records = {
-        record1,
-        record2,
-        spacer,
-        record3,
-        record4
-    };
-    std::vector<Record> tab2Records = {
-        record5,
-        record6
-    };
-    std::vector<Record> tab3Records = {
-        record7,
-        record8
-    };
-
     // Add commands to each tab.
-    //~ addCommands(data, 0, commands1);
-    //~ addCommands(data, 1, commands2);
-    //~ addCommands(data, 2, commands3);
     addRecordsToTab(data, 0, tab1Records);
     addRecordsToTab(data, 1, tab2Records);
     addRecordsToTab(data, 2, tab3Records);
@@ -256,14 +189,9 @@ int main() {
     int selectedRecord = 0;
 
     // Initial draw
-    drawTabs(TabsWin, data, selectedTab);
-    drawRecords(RightWin, data, selectedTab, selectedRecord);
-    drawComments(CommWin, data, selectedTab, selectedRecord);
+    drawFullView(TabsWin, RightWin, CommWin, data, selectedTab, selectedRecord);
 
-    wrefresh(RightWin);
-    wrefresh(AnimWin);
-    wrefresh(TabsWin);
-    wrefresh(CommWin);
+    wrapRefresh(RightWin, AnimWin, TabsWin, CommWin);
 
     //~ napms(2000); // Optional delay to observe initial draw
 
@@ -278,12 +206,8 @@ int main() {
 
             // Get new terminal dimensions
             getmaxyx(stdscr, max_y, max_x);
-
             // Recreate windows with new dimensions
-            delwin(RightWin);
-            delwin(AnimWin);
-            delwin(TabsWin);
-            delwin(CommWin);
+            wrapDelete(RightWin, AnimWin, TabsWin, CommWin);
 
             RightWin = newwin(max_y, max_x - 30, 0, 30);
             AnimWin = newwin(13, 30, 0, 0);
@@ -292,44 +216,28 @@ int main() {
             CommWin = newwin(row3Height, 30, 26, 0);
 
             // Redraw borders
-            box(RightWin, 0, 0);
-            box(AnimWin, 0, 0);
-            box(TabsWin, 0, 0);
-            box(CommWin, 0, 0);
+            wrapBox(RightWin, AnimWin, TabsWin, CommWin);
 
-            drawTabs(TabsWin, data, selectedTab);
-            drawRecords(RightWin, data, selectedTab, selectedRecord);
-            drawComments(CommWin, data, selectedTab, selectedRecord);
+            drawFullView(TabsWin, RightWin, CommWin, data, selectedTab, selectedRecord);
 
-            wrefresh(RightWin);
-            wrefresh(AnimWin);
-            wrefresh(TabsWin);
-            wrefresh(CommWin);
+            wrapRefresh(RightWin, AnimWin, TabsWin, CommWin);
         } else if (c == '\t') {
             selectedTab = (selectedTab + 1) % data.tabNames.size();
             selectedRecord = 0;
-            drawTabs(TabsWin, data, selectedTab);
-            drawRecords(RightWin, data, selectedTab, selectedRecord);
-            drawComments(CommWin, data, selectedTab, selectedRecord);
-            wrefresh(RightWin);
-            wrefresh(TabsWin);
-            wrefresh(CommWin);
+            drawFullView(TabsWin, RightWin, CommWin, data, selectedTab, selectedRecord);
+            wrapRefresh(RightWin, TabsWin, CommWin);
         } else if (c == KEY_UP) {
             do {
                 selectedRecord = (selectedRecord - 1 + data.tabRecords[selectedTab].size()) % data.tabRecords[selectedTab].size();
             } while (data.tabRecords[selectedTab][selectedRecord].type == ' '); // Skip spacers
-            drawRecords(RightWin, data, selectedTab, selectedRecord);
-            drawComments(CommWin, data, selectedTab, selectedRecord);
-            wrefresh(RightWin);
-            wrefresh(CommWin);
+            drawRecordsAndComments(RightWin, CommWin, data, selectedTab, selectedRecord);
+            wrapRefresh(RightWin, CommWin);
         } else if (c == KEY_DOWN) {
             do {
                 selectedRecord = (selectedRecord + 1) % data.tabRecords[selectedTab].size();
             } while (data.tabRecords[selectedTab][selectedRecord].type == ' '); // Skip spacers
-            drawRecords(RightWin, data, selectedTab, selectedRecord);
-            drawComments(CommWin, data, selectedTab, selectedRecord);
-            wrefresh(RightWin);
-            wrefresh(CommWin);
+            drawRecordsAndComments(RightWin, CommWin, data, selectedTab, selectedRecord);
+            wrapRefresh(RightWin, CommWin);
         } else if (c == '\n') { // Enter key pressed
             //~ if (selectedTab == data.tabNames.size() - 1) { // Last tab (Templates)
             if (data.tabRecords[selectedTab][selectedRecord].type == 'T') {
@@ -375,10 +283,7 @@ int main() {
         }
     }
 
-    delwin(RightWin);
-    delwin(AnimWin);
-    delwin(TabsWin);
-    delwin(CommWin);
+    wrapDelete(RightWin, AnimWin, TabsWin, CommWin);
 
     endwin();
     return 0;
