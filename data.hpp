@@ -5,6 +5,7 @@
 #include <vector>
 
 struct Record {
+    int tab;
     char type;
     std::string label;
     std::string command;
@@ -12,15 +13,6 @@ struct Record {
     std::string color;
 };
 
-Record getSpacer();
-
-Record getRecord1();
-Record getRecord2();
-Record getRecord3();
-Record getRecord4();
-Record getRecord5();
-Record getRecord6();
-Record getRecord7();
-Record getRecord8();
+std::vector<Record> getAllRecords();
 
 #endif

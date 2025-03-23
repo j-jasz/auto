@@ -9,33 +9,31 @@
 
 // Add tabs
 const std::string tabNames[] = {
-    "Tab 1",
-    "Tab 2",
-    "Tab 3",
+    "APT",
+    "DESKTOP",
+    "BLENDER"
 };
 
-// Add records to tabs
-std::vector<Record> tab1Records = {
-    getRecord1(),
-    getRecord2(),
-    getSpacer(),
-    getRecord3(),
-    getRecord4()
-};
-std::vector<Record> tab2Records = {
-    getRecord5(),
-    getRecord6()
-};
-std::vector<Record> tab3Records = {
-    getRecord7(),
-    getRecord8()
-};
+// Get all records dynamically
+std::vector<Record> allRecords = getAllRecords();
 
 struct TabData {
     std::vector<std::string> tabNames;
     std::vector<std::vector<Record>> tabRecords;
 };
 
+// Function to determine the number of tabs based on records
+int determineNumTabs(const std::vector<Record> &records) {
+    int numTabs = 0;
+    for (const auto &record : records) {
+        if (record.tab >= numTabs) {
+            numTabs = record.tab + 1;
+        }
+    }
+    return numTabs;
+}
+
+// Initialize TabData with the correct number of tabs
 TabData initTabData(int numTabs) {
     TabData data;
     data.tabNames.resize(numTabs);
@@ -43,14 +41,40 @@ TabData initTabData(int numTabs) {
     return data;
 }
 
+TabData initTabDataWithRecords(const std::vector<Record> &records) {
+    return initTabData(determineNumTabs(records));
+}
+
 // Function to add a tab
 void addTabName(TabData &data, int tabIndex, const std::string &tabName) {
-    data.tabNames[tabIndex] = tabName;
+    if (tabIndex >= 0 && tabIndex < data.tabNames.size()) {
+        data.tabNames[tabIndex] = tabName;
+    }
+}
+
+void assignTabNames(TabData &data, const std::string tabNames[], int numTabs) {
+    for (int i = 0; i < numTabs; i++) {
+        addTabName(data, i, tabNames[i]);
+    }
 }
 
 // Function to add records to a tab
 void addRecordsToTab(TabData &data, int tabIndex, const std::vector<Record> &records) {
-    data.tabRecords[tabIndex] = records;
+    if (tabIndex >= 0 && tabIndex < data.tabRecords.size()) {
+        data.tabRecords[tabIndex] = records;
+    }
+}
+
+void assignRecordsToTabs(TabData &data, const std::vector<Record> &records) {
+    for (int i = 0; i < data.tabNames.size(); i++) {
+        std::vector<Record> tabRecords;
+        for (const auto &record : records) {
+            if (record.tab == i) {
+                tabRecords.push_back(record);
+            }
+        }
+        addRecordsToTab(data, i, tabRecords);
+    }
 }
 
 // Function to draw tabs
@@ -79,15 +103,21 @@ void drawRecords(WINDOW *RightWin, const TabData &data, int selectedTab, int sel
     box(RightWin, 0, 0);
     // Print records inside the window, avoiding the borders
     for (int i = 0; i < data.tabRecords[selectedTab].size(); i++) {
-        // Print type without highlighting
-        mvwprintw(RightWin, i + 2, 4, "%c ", data.tabRecords[selectedTab][i].type);
-        if (i == selectedRecord) {
-            wattron(RightWin, A_REVERSE); // Highlight selected record
-        }
-        // Print label with highlighting if selected
-        mvwprintw(RightWin, i + 2, 7, "%s", data.tabRecords[selectedTab][i].label.data());
-        if (i == selectedRecord) {
-            wattroff(RightWin, A_REVERSE); // Remove highlight from selected record
+        if (data.tabRecords[selectedTab][i].type != ' ') {
+            // Print type without highlighting
+            mvwprintw(RightWin, i + 2, 6, "%c ", data.tabRecords[selectedTab][i].type);
+            //~ mvwprintw(RightWin, i + 2, 4, "%c ", data.tabRecords[selectedTab][i].type);
+            if (i == selectedRecord) {
+                wattron(RightWin, A_REVERSE); // Highlight selected record
+            }
+            // Print label with highlighting if selected
+            mvwprintw(RightWin, i + 2, 9, "%s", data.tabRecords[selectedTab][i].label.data());
+            if (i == selectedRecord) {
+                wattroff(RightWin, A_REVERSE); // Remove highlight from selected record
+            }
+        } else {
+            // If type is ' ', print label with offset without highlighting
+            mvwprintw(RightWin, i + 2, 4, "%s", data.tabRecords[selectedTab][i].label.data());
         }
     }
 }
@@ -108,7 +138,6 @@ void drawComments(WINDOW *CommWin, const TabData &data, int selectedTab, int sel
     int x = 1; // Start from the second column to avoid the left border
     while (!comment.empty()) {
         // Find the next character that fits on this line
-        //~ size_t nextChar = std::min(max_x - x, comment.size());
         size_t nextChar = std::min<size_t>(static_cast<size_t>(max_x - x), comment.size());
         // Print the part of the comment that fits on this line
         std::string line = comment.substr(0, nextChar);
@@ -172,21 +201,13 @@ int main() {
     keypad(TabsWin, TRUE);
     keypad(RightWin, TRUE);
 
-    // Initialize a TabData object with 3 tabs and 3 command sets.
-    TabData data = initTabData(3);
-
-    // Add tabs
-    for (int i = 0; i < data.tabNames.size(); i++) {
-        addTabName(data, i, tabNames[i]);
-    }
-    // Add commands to each tab.
-    addRecordsToTab(data, 0, tab1Records);
-    addRecordsToTab(data, 1, tab2Records);
-    addRecordsToTab(data, 2, tab3Records);
+    TabData data = initTabDataWithRecords(allRecords);
+    assignTabNames(data, tabNames, data.tabNames.size());
+    assignRecordsToTabs(data, allRecords);
 
     // Initialize the initial state of the tab and command selection.
     int selectedTab = 0;
-    int selectedRecord = 0;
+    int selectedRecord = 1;
 
     // Initial draw
     drawFullView(TabsWin, RightWin, CommWin, data, selectedTab, selectedRecord);
@@ -220,7 +241,12 @@ int main() {
             wrapRefresh(RightWin, AnimWin, TabsWin, CommWin);
         } else if (c == '\t') {
             selectedTab = (selectedTab + 1) % data.tabNames.size();
-            selectedRecord = 0;
+            selectedRecord = 1;
+            drawFullView(TabsWin, RightWin, CommWin, data, selectedTab, selectedRecord);
+            wrapRefresh(RightWin, TabsWin, CommWin);
+        } else if (c == '`') {
+            selectedTab = (selectedTab - 1 + data.tabNames.size()) % data.tabNames.size();
+            selectedRecord = 1;
             drawFullView(TabsWin, RightWin, CommWin, data, selectedTab, selectedRecord);
             wrapRefresh(RightWin, TabsWin, CommWin);
         } else if (c == KEY_UP) {
@@ -236,10 +262,9 @@ int main() {
             drawRecordsAndComments(RightWin, CommWin, data, selectedTab, selectedRecord);
             wrapRefresh(RightWin, CommWin);
         } else if (c == '\n') { // Enter key pressed
-            //~ if (selectedTab == data.tabNames.size() - 1) { // Last tab (Templates)
             if (data.tabRecords[selectedTab][selectedRecord].type == 'T') {
                 endwin(); // Exit ncurses mode permanently
-                //~ std::string command = data.tabRecords[selectedTab][selectedRecord];
+                std::cout << std::endl; // Print empty line
                 std::string command = data.tabRecords[selectedTab][selectedRecord].command;
                 // Create a script in /tmp
                 std::string scriptPath = "/tmp/ncurses_script.sh";
@@ -268,7 +293,6 @@ int main() {
                 return 0; // Exit the program
             } else { // Execute command directly for non-template tabs
                 endwin(); // Exit ncurses mode
-                //~ std::string command = data.tabRecords[selectedTab][selectedRecord];
                 std::string command = data.tabRecords[selectedTab][selectedRecord].command;
                 system(command.c_str()); // Execute the command in the terminal
                 return 0; // Exit the program
