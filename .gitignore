@@ -2,7 +2,11 @@
 TODO
 auto
 commands
+auto.cpp
+records.cpp
+records.hpp
 
 # directories
 /ARCH
 /refs
+/scripts
