@@ -5,8 +5,9 @@ commands
 auto.cpp
 records.cpp
 records.hpp
+folder.png
 
 # directories
 /ARCH
-/refs
+/images
 /scripts
