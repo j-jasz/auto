@@ -2,6 +2,8 @@
 
 #include <ncurses.h>
 #include <vector>
+#include <cstdlib>
+#include <cmath>
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -101,32 +103,88 @@ void drawTabs(WINDOW *TabsWin, const TabData &data, int selectedTab) {
     }
 }
 
-// Function to draw records
+// Helper function to wrap and print a label within a given width
+void wrapAndPrintLabel(WINDOW *win, int lineIndex, int startX, int width, const std::string &label, bool highlight = false) {
+    size_t pos = 0;
+    while (pos < label.size()) {
+        size_t nextPos = label.find('\n', pos); // Check for newline
+        if (nextPos == std::string::npos) {
+            nextPos = label.size();
+        }
+        std::string line = label.substr(pos, nextPos - pos);
+        if (line.size() > width) {
+            // Split line into multiple parts if it's too long
+            size_t splitPos = width;
+            while (splitPos > 0 && !isspace(label[pos + splitPos])) {
+                splitPos--;
+            }
+            if (splitPos == 0) {
+                splitPos = width; // Force split if no space found
+            }
+            line = label.substr(pos, splitPos);
+            pos += splitPos;
+        } else {
+            pos = nextPos;
+        }
+        // Print the line
+        if (highlight) {
+            wattron(win, A_REVERSE); // Highlight if needed
+        }
+        mvwprintw(win, lineIndex, startX, "%s", line.c_str());
+        if (highlight) {
+            wattroff(win, A_REVERSE); // Remove highlight
+        }
+        // Move to next line if not at the end of the label
+        if (pos < label.size()) {
+            lineIndex++;
+        }
+    }
+}
+
+// Function to draw records with line wrapping
 void drawRecords(WINDOW *RightWin, const TabData &data, int selectedTab, int selectedRecord) {
     // Clear the window's interior (not the borders)
     werase(RightWin);
     // Redraw borders
     box(RightWin, 0, 0);
+    // Calculate available width for text
+    int width = getmaxx(RightWin) - 2; // Subtract 2 for border width
+    int lineIndex = 2; // Starting line index
+
     // Print records inside the window, avoiding the borders
     for (int i = 0; i < data.tabRecords[selectedTab].size(); i++) {
         if (data.tabRecords[selectedTab][i].type != ' ') {
             // Print type without highlighting
-            mvwprintw(RightWin, i + 2, 6, "%c ", data.tabRecords[selectedTab][i].type);
-            //~ mvwprintw(RightWin, i + 2, 4, "%c ", data.tabRecords[selectedTab][i].type);
-            if (i == selectedRecord) {
-                wattron(RightWin, A_REVERSE); // Highlight selected record
-            }
-            // Print label with highlighting if selected
-            mvwprintw(RightWin, i + 2, 9, "%s", data.tabRecords[selectedTab][i].label.data());
-            if (i == selectedRecord) {
-                wattroff(RightWin, A_REVERSE); // Remove highlight from selected record
+            mvwprintw(RightWin, lineIndex, 6, "%c ", data.tabRecords[selectedTab][i].type);
+            std::string label = data.tabRecords[selectedTab][i].label;
+            int labelStartX = 9; // Starting x position for label
+            bool highlight = (i == selectedRecord); // Highlight if selected
+            // check for 0-length columns
+            if (width - labelStartX > 0) {
+                wrapAndPrintLabel(RightWin, lineIndex, labelStartX, width - labelStartX, label, highlight);
+                // Ensure we move to the next line after printing a record
+                lineIndex += std::ceil(label.size() / static_cast<double>(width - labelStartX));
+            } else {
+                // Skip drawing if ther is no space
+                lineIndex++;
             }
         } else {
             // If type is ' ', print label with offset without highlighting
-            mvwprintw(RightWin, i + 2, 4, "%s", data.tabRecords[selectedTab][i].label.data());
+            std::string label = data.tabRecords[selectedTab][i].label;
+            int labelStartX = 4; // Starting x position for label
+            // check for 0-length columns
+            if (width - labelStartX > 0) {
+                wrapAndPrintLabel(RightWin, lineIndex, labelStartX, width - labelStartX, label);
+                // Ensure we move to the next line after printing a record
+                lineIndex += std::ceil(label.size() / static_cast<double>(width - labelStartX));
+            } else {
+                // Skip drawing if ther is no space
+                lineIndex++;
+            }
         }
     }
 }
+
 // Function to draw comments
 void drawComments(WINDOW *CommWin, const TabData &data, int selectedTab, int selectedRecord) {
     // Clear the window's interior (not the borders)
