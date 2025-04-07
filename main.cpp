@@ -14,6 +14,12 @@ const std::string tabNames[] = {
     "BLENDER"
 };
 
+// Get HOME EVVAR
+std::string getHomeDir() {
+    const char* homeDir = std::getenv("HOME");
+    return homeDir ? std::string(homeDir) : std::string();
+}
+
 // Get all records dynamically
 std::vector<Record> allRecords = getAllRecords();
 
