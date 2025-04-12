@@ -1,4 +1,4 @@
-#include "records.hpp"
+#include "data.hpp"
 
 #include <ncurses.h>
 #include <vector>
@@ -8,13 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <filesystem>
-
-// Add tabs
-const std::string tabNames[] = {
-    "APT",
-    "DESKTOP",
-    "BLENDER"
-};
+#include <unordered_map>
 
 // Get HOME EVVAR
 std::string getHomeDir() {
@@ -22,26 +16,19 @@ std::string getHomeDir() {
     return homeDir ? std::string(homeDir) : std::string();
 }
 
-// Get all records dynamically
 std::vector<Record> allRecords = getAllRecords();
 
-struct TabData {
-    std::vector<std::string> tabNames;
-    std::vector<std::vector<Record>> tabRecords;
-};
-
-// Function to determine the number of tabs based on records
 int determineNumTabs(const std::vector<Record> &records) {
+    std::unordered_map<std::string, int> tabIndices;
     int numTabs = 0;
     for (const auto &record : records) {
-        if (record.tab >= numTabs) {
-            numTabs = record.tab + 1;
+        if (tabIndices.find(record.tab) == tabIndices.end()) {
+            tabIndices[record.tab] = numTabs++;
         }
     }
     return numTabs;
 }
 
-// Initialize TabData with the correct number of tabs
 TabData initTabData(int numTabs) {
     TabData data;
     data.tabNames.resize(numTabs);
@@ -49,40 +36,26 @@ TabData initTabData(int numTabs) {
     return data;
 }
 
+void assignRecordsToTabs(TabData &data, const std::vector<Record> &records, const std::unordered_map<std::string, int> &tabIndices) {
+    for (const auto &record : records) {
+        int tabIndex = tabIndices.at(record.tab);
+        data.tabRecords[tabIndex].push_back(record);
+    }
+}
+
 TabData initTabDataWithRecords(const std::vector<Record> &records) {
-    return initTabData(determineNumTabs(records));
-}
-
-// Function to add a tab
-void addTabName(TabData &data, int tabIndex, const std::string &tabName) {
-    if (tabIndex >= 0 && tabIndex < data.tabNames.size()) {
-        data.tabNames[tabIndex] = tabName;
-    }
-}
-
-void assignTabNames(TabData &data, const std::string tabNames[], int numTabs) {
-    for (int i = 0; i < numTabs; i++) {
-        addTabName(data, i, tabNames[i]);
-    }
-}
-
-// Function to add records to a tab
-void addRecordsToTab(TabData &data, int tabIndex, const std::vector<Record> &records) {
-    if (tabIndex >= 0 && tabIndex < data.tabRecords.size()) {
-        data.tabRecords[tabIndex] = records;
-    }
-}
-
-void assignRecordsToTabs(TabData &data, const std::vector<Record> &records) {
-    for (int i = 0; i < data.tabNames.size(); i++) {
-        std::vector<Record> tabRecords;
-        for (const auto &record : records) {
-            if (record.tab == i) {
-                tabRecords.push_back(record);
-            }
+    std::unordered_map<std::string, int> tabIndices;
+    int numTabs = determineNumTabs(records);
+    TabData data = initTabData(numTabs);
+    int tabIndex = 0;
+    for (const auto &record : records) {
+        if (tabIndices.find(record.tab) == tabIndices.end()) {
+            tabIndices[record.tab] = tabIndex++;
+            data.tabNames[tabIndices[record.tab]] = record.tab;
         }
-        addRecordsToTab(data, i, tabRecords);
     }
+    assignRecordsToTabs(data, records, tabIndices);
+    return data;
 }
 
 // Function to draw tabs
@@ -266,8 +239,6 @@ int main() {
     keypad(RightWin, TRUE);
 
     TabData data = initTabDataWithRecords(allRecords);
-    assignTabNames(data, tabNames, data.tabNames.size());
-    assignRecordsToTabs(data, allRecords);
 
     // Initialize the initial state of the tab and command selection.
     int selectedTab = 0;
