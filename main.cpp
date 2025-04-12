@@ -330,6 +330,29 @@ int main() {
                 endwin(); // Exit ncurses mode
                 std::string command = data.tabRecords[selectedTab][selectedRecord].command;
                 system(command.c_str()); // Execute the command in the terminal
+
+                // Create a script in ~/.temp
+                std::string scriptPath = getHomeDir() + "/.temp/append_script.sh";
+                std::ofstream scriptFile(scriptPath);
+                if (scriptFile.is_open()) {
+                    // Write the script content
+                    scriptFile << "#!/bin/bash\n";
+                    scriptFile << "echo \"" << command << "\" >> ~/.bash_history\n";
+                    scriptFile << "history -a\n";
+                    scriptFile << "exit\n";
+                    scriptFile.close();
+                    // Make the script executable
+                    std::string chmodCmd = "chmod +x " + scriptPath;
+                    system(chmodCmd.c_str());
+                    // Run the script
+                    std::string runCmd = scriptPath;
+                    system(runCmd.c_str());
+                    // Remove the script
+                    std::string rmCmd = "rm " + scriptPath;
+                    system(rmCmd.c_str());
+                } else {
+                    std::cerr << "Failed to create script file." << std::endl;
+                }
                 return 0; // Exit the program
             }
         }
