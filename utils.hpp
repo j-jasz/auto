@@ -1,9 +1,9 @@
-#ifndef UTILS_H
-#define UTILS_H
+
+#ifndef UTILS_HPP
+#define UTILS_HPP
 
 #include <string>
 
-// Declaration of getHomeDir function
 std::string getHomeDir();
 
 #endif // UTILS_H

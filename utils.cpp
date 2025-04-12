@@ -1,4 +1,6 @@
+
 #include "utils.hpp"
+
 #include <cstdlib>
 
 std::string getHomeDir() {

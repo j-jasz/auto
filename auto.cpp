@@ -1,18 +1,19 @@
-#include "records.hpp"
-#include "draw.hpp"
-#include "utils.hpp"
-#include "script_utils.hpp"
-#include "colors.hpp"
 
-#include <ncurses.h>
-#include <vector>
-#include <cstdlib>
+#include "colors.hpp"
+#include "draw.hpp"
+#include "records.hpp"
+#include "script_utils.hpp"
+#include "utils.hpp"
+
 #include <cmath>
-#include <string>
-#include <iostream>
-#include <fstream>
+#include <cstdlib>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <ncurses.h>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 int offset = 0;
 
@@ -67,10 +68,12 @@ template<typename... Args>
 void wrapRefresh(Args... args) {
     (wrefresh(args), ...);
 }
+
 template<typename... Args>
 void wrapDelete(Args... args) {
     (delwin(args), ...);
 }
+
 template<typename... Args>
 void wrapBox(Args... args) {
     (box(args, 0, 0), ...);
@@ -116,6 +119,7 @@ int main() {
     // Key handling
     int c;
     while ((c = getch()) != 'q') {
+
         if (c == KEY_RESIZE) {
             // Handle resize
             endwin(); // End curses mode temporarily
@@ -136,41 +140,54 @@ int main() {
             wrapBox(RecWin, AnimWin, TabsWin, CommWin);
             drawFullView(AnimWin, TabsWin, RecWin, CommWin, data, selectedTab, selectedRecord, offset);
             wrapRefresh(RecWin, AnimWin, TabsWin, CommWin);
+
         // For the tab key
         } else if (c == '\t') {
+
             if (selectedTab == data.tabNames.size() - 1) {
                 // Move to the first tab
                 selectedTab = 0;
             } else {
                 selectedTab++;
             }
+
             selectedRecord = 1;
             drawFullView(AnimWin, TabsWin, RecWin, CommWin, data, selectedTab, selectedRecord, offset);
             wrapRefresh(RecWin, TabsWin, CommWin);
+
         // For the backtick (`) key
         } else if (c == '`') {
+
             if (selectedTab == 0) {
                 // Move to the last tab
                 selectedTab = data.tabNames.size() - 1;
             } else {
                 selectedTab--;
             }
+
             selectedRecord = 1;
             drawFullView(AnimWin, TabsWin, RecWin, CommWin, data, selectedTab, selectedRecord, offset);
             wrapRefresh(RecWin, TabsWin, CommWin);
+
         } else if (c == KEY_UP) {
+
             do {
                 selectedRecord = (selectedRecord - 1 + data.tabRecords[selectedTab].size()) % data.tabRecords[selectedTab].size();
+
             } while (data.tabRecords[selectedTab][selectedRecord].type == ' '); // Skip spacers
+
             // Check if we are at the first record in the list
             if (selectedRecord == 1) {
+
                 // Scroll up by two lines if possible
                 if (offset > 1) {
                     offset -= 2;
                 } else {
                     offset = 0; // Ensure offset doesn't go negative
                 }
+
             } else {
+
                 // Adjust offset to ensure selectedRecord is visible
                 if (selectedRecord < offset) {
                     offset = selectedRecord; // Scroll up to show the selected record
@@ -178,47 +195,66 @@ int main() {
                     offset = selectedRecord - (getmaxy(RecWin) - 4) + 1; // Adjust for top and bottom reserved rows
                 }
             }
+
             drawRecordsAndComments(RecWin, CommWin, data, selectedTab, selectedRecord, offset);
             wrapRefresh(RecWin, CommWin);
+
         } else if (c == KEY_DOWN) {
+
             do {
                 selectedRecord = (selectedRecord + 1) % data.tabRecords[selectedTab].size();
             } while (data.tabRecords[selectedTab][selectedRecord].type == ' '); // Skip spacers
+
             // Adjust offset to ensure selectedRecord is visible
             if (selectedRecord >= offset + (getmaxy(RecWin) - 4)) {
                 offset = selectedRecord - (getmaxy(RecWin) - 4) + 1; // Scroll down to show the selected record
             } else if (selectedRecord < offset) {
                 offset = selectedRecord; // Adjust for reverse scrolling
             }
+
             if (selectedRecord == 1) {
                 offset = std::max(0, offset - 1); // Move offset up by one line
             }
+
             drawRecordsAndComments(RecWin, CommWin, data, selectedTab, selectedRecord, offset);
             wrapRefresh(RecWin, CommWin);
+
         } else if (c == '\n') { // Enter key pressed
+
             if (data.tabRecords[selectedTab][selectedRecord].type == 'T') {
+
                 endwin(); // Exit ncurses mode permanently
                 std::string command = data.tabRecords[selectedTab][selectedRecord].command;
                 std::cout << std::endl; // Print empty line
                 createScriptFile(scriptFile, scriptPath);
+
                 if (scriptFile.is_open()) {
+
                     appendBashHistoryT(scriptFile, command);
                     executeAndRemoveScript(scriptPath);
+
                 } else {
                     std::cerr << "Failed to create script file." << std::endl;
                 }
+
                 return 0; // Exit the program
+
             } else { // Execute command directly for non-template tabs
+
                 endwin(); // Exit ncurses mode
                 std::string command = data.tabRecords[selectedTab][selectedRecord].command;
                 system(command.c_str()); // Execute the command in the terminal
                 createScriptFile(scriptFile, scriptPath);
+
                 if (scriptFile.is_open()) {
+
                     appendBashHistoryC(scriptFile, command);
                     executeAndRemoveScript(scriptPath);
+
                 } else {
                     std::cerr << "Failed to create script file." << std::endl;
                 }
+
                 return 0; // Exit the program
             }
         }
