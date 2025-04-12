@@ -13,6 +13,6 @@ Usage:
   - [Enter] - executes command
   - [q] - quit
 
-Compile with `g++ main.cpp data.cpp -o auto -lncurses`
+Compile with `g++ auto.cpp draw.cpp records.cpp colors.cpp script_utils.cpp utils.cpp -o auto -lncurses`
 
-![screen](https://github.com/user-attachments/assets/ea648359-0e20-4bbb-9d28-a19d20b1d41b)
+![auto](https://github.com/user-attachments/assets/bef1303c-f81b-4913-8ec7-90e6f6a111a3)
