@@ -10,6 +10,8 @@
 #include <filesystem>
 #include <unordered_map>
 
+int offset = 0;
+
 // Get HOME EVVAR
 std::string getHomeDir() {
     const char* homeDir = std::getenv("HOME");
@@ -58,18 +60,30 @@ TabData initTabDataWithRecords(const std::vector<Record> &records) {
     return data;
 }
 
-// Function to draw tabs
+// Function to draw Animation
+void drawAnim(WINDOW *AnimWin) {
+    werase(AnimWin);
+    box(AnimWin, 0, 0);
+}
+
+// Function to draw Tabs
 void drawTabs(WINDOW *TabsWin, const TabData &data, int selectedTab) {
     werase(TabsWin);
     // Redraw borders
     box(TabsWin, 0, 0);
+    // Define the column width and margin
+    const int columnWidth = 10; // 7 characters for the longest label + 3 for margin
+    const int maxRows = TabsWin->_maxy - 1; // Subtract borders - this adds top margin
     // Print tab names inside the window, avoiding the borders
     for (int i = 0; i < data.tabNames.size(); i++) {
+        int row = i % maxRows + 1; // Sequentially fill rows
+        int col = (i / maxRows) * columnWidth + 4; // Move to next column after filling rows
+        if (row > maxRows) break; // Stop if we exceed the window height
         if (i == selectedTab) {
             wattron(TabsWin, A_REVERSE); // Highlight selected tab
         }
         // Print tab name starting from row 1 to avoid overwriting borders
-        mvwprintw(TabsWin, i + 2, 4, "%s", data.tabNames[i].c_str());
+        mvwprintw(TabsWin, row, col, "%-7s", data.tabNames[i].c_str());
         if (i == selectedTab) {
             wattroff(TabsWin, A_REVERSE); // Remove highlight from selected tab
         }
@@ -114,51 +128,69 @@ void wrapAndPrintLabel(WINDOW *win, int lineIndex, int startX, int width, const 
     }
 }
 
-// Function to draw records with line wrapping
-void drawRecords(WINDOW *RightWin, const TabData &data, int selectedTab, int selectedRecord) {
+// Function to draw Records with line wrapping
+void drawRecords(WINDOW *RecWin, const TabData &data, int selectedTab, int selectedRecord, int offset) {
     // Clear the window's interior (not the borders)
-    werase(RightWin);
-    // Redraw borders
-    box(RightWin, 0, 0);
+    werase(RecWin);
+    box(RecWin, 0, 0); // Redraw borders
     // Calculate available width for text
-    int width = getmaxx(RightWin) - 2; // Subtract 2 for border width
+    int width = getmaxx(RecWin) - 2; // Subtract 2 for border width
+    int maxRows = getmaxy(RecWin) - 2; // Reserve last two rows
     int lineIndex = 2; // Starting line index
 
     // Print records inside the window, avoiding the borders
-    for (int i = 0; i < data.tabRecords[selectedTab].size(); i++) {
+    for (int i = offset; i < data.tabRecords[selectedTab].size(); i++) {
         if (data.tabRecords[selectedTab][i].type != ' ') {
-            // Print type without highlighting
-            mvwprintw(RightWin, lineIndex, 6, "%c ", data.tabRecords[selectedTab][i].type);
+            // Check if we are near the bottom
+            if (lineIndex >= maxRows) break;
+
+            mvwprintw(RecWin, lineIndex, 6, "[%c]  ", data.tabRecords[selectedTab][i].type);
+
+            // Print record label
             std::string label = data.tabRecords[selectedTab][i].label;
-            int labelStartX = 9; // Starting x position for label
+            int labelStartX = 11; // Starting x position for label
             bool highlight = (i == selectedRecord); // Highlight if selected
-            // check for 0-length columns
+
+            // Check for sufficient space to print the label
             if (width - labelStartX > 0) {
-                wrapAndPrintLabel(RightWin, lineIndex, labelStartX, width - labelStartX, label, highlight);
-                // Ensure we move to the next line after printing a record
-                lineIndex += std::ceil(label.size() / static_cast<double>(width - labelStartX));
+                wrapAndPrintLabel(RecWin, lineIndex, labelStartX, width - labelStartX, label, highlight);
+
+                // Move to the next line after printing a record
+                int linesUsed = std::ceil(label.size() / static_cast<double>(width - labelStartX));
+                lineIndex += linesUsed;
+
+                // Check again if we are near the bottom after printing
+                if (lineIndex >= maxRows) break;
             } else {
-                // Skip drawing if ther is no space
+                // Skip drawing if there is no space
                 lineIndex++;
             }
-        } else {
-            // If type is ' ', print label with offset without highlighting
+        } else { // Print section labels
+            // Check if we are near the bottom
+            if (lineIndex >= maxRows) break;
+
             std::string label = data.tabRecords[selectedTab][i].label;
             int labelStartX = 4; // Starting x position for label
-            // check for 0-length columns
+
+            // Check for sufficient space to print the label
             if (width - labelStartX > 0) {
-                wrapAndPrintLabel(RightWin, lineIndex, labelStartX, width - labelStartX, label);
-                // Ensure we move to the next line after printing a record
-                lineIndex += std::ceil(label.size() / static_cast<double>(width - labelStartX));
+                wrapAndPrintLabel(RecWin, lineIndex, labelStartX, width - labelStartX, label);
+
+                // Move to the next line after printing a record
+                int linesUsed = std::ceil(label.size() / static_cast<double>(width - labelStartX));
+                lineIndex += linesUsed;
+
             } else {
-                // Skip drawing if ther is no space
+                // Skip drawing if there is no space
                 lineIndex++;
             }
         }
     }
+    // Refresh the window
+    wrefresh(RecWin);
 }
 
-// Function to draw comments
+// Function to draw Comments
 void drawComments(WINDOW *CommWin, const TabData &data, int selectedTab, int selectedRecord) {
     // Clear the window's interior (not the borders)
     werase(CommWin);
@@ -204,13 +236,14 @@ template<typename... Args>
 void wrapBox(Args... args) {
     (box(args, 0, 0), ...);
 }
-void drawFullView(WINDOW* TabsWin, WINDOW* RightWin, WINDOW* CommWin, TabData& data, int selectedTab, int selectedRecord) {
+void drawFullView(WINDOW* AnimWin, WINDOW* TabsWin, WINDOW* RecWin, WINDOW* CommWin, TabData& data, int selectedTab, int selectedRecord, int offset) {
+    drawAnim(AnimWin);
     drawTabs(TabsWin, data, selectedTab);
-    drawRecords(RightWin, data, selectedTab, selectedRecord);
+    drawRecords(RecWin, data, selectedTab, selectedRecord, offset);
     drawComments(CommWin, data, selectedTab, selectedRecord);
 }
-void drawRecordsAndComments(WINDOW* RightWin, WINDOW* CommWin, TabData& data, int selectedTab, int selectedRecord) {
-    drawRecords(RightWin, data, selectedTab, selectedRecord);
+void drawRecordsAndComments(WINDOW* RecWin, WINDOW* CommWin, TabData& data, int selectedTab, int selectedRecord, int offset) {
+    drawRecords(RecWin, data, selectedTab, selectedRecord, offset);
     drawComments(CommWin, data, selectedTab, selectedRecord);
 }
 
@@ -226,17 +259,17 @@ int main() {
     int max_y, max_x;
     getmaxyx(stdscr, max_y, max_x);
     // Create windows
-    WINDOW *RightWin = newwin(max_y, max_x - 30, 0, 30);
+    WINDOW *RecWin = newwin(max_y, max_x - 30, 0, 30);
     WINDOW *AnimWin = newwin(13, 30, 0, 0);
     WINDOW *TabsWin = newwin(13, 30, 13, 0);
     int row3Height = max_y - 26; // Assuming row1 and row2 take up 26 lines
     WINDOW *CommWin = newwin(row3Height, 30, 26, 0);
 
-    wrapBox(RightWin, AnimWin, TabsWin, CommWin);
-    wrapRefresh(RightWin, AnimWin, TabsWin, CommWin);
+    wrapBox(RecWin, AnimWin, TabsWin, CommWin);
+    wrapRefresh(RecWin, AnimWin, TabsWin, CommWin);
 
     keypad(TabsWin, TRUE);
-    keypad(RightWin, TRUE);
+    keypad(RecWin, TRUE);
 
     TabData data = initTabDataWithRecords(allRecords);
 
@@ -245,9 +278,8 @@ int main() {
     int selectedRecord = 1;
 
     // Initial draw
-    drawFullView(TabsWin, RightWin, CommWin, data, selectedTab, selectedRecord);
-
-    wrapRefresh(RightWin, AnimWin, TabsWin, CommWin);
+    drawFullView(AnimWin, TabsWin, RecWin, CommWin, data, selectedTab, selectedRecord, offset);
+    wrapRefresh(RecWin, AnimWin, TabsWin, CommWin);
 
     //~ napms(2000); // Optional delay to observe initial draw
 
@@ -263,39 +295,39 @@ int main() {
             // Get new terminal dimensions
             getmaxyx(stdscr, max_y, max_x);
             // Recreate windows with new dimensions
-            wrapDelete(RightWin, AnimWin, TabsWin, CommWin);
+            wrapDelete(RecWin, AnimWin, TabsWin, CommWin);
 
-            RightWin = newwin(max_y, max_x - 30, 0, 30);
+            RecWin = newwin(max_y, max_x - 30, 0, 30);
             AnimWin = newwin(13, 30, 0, 0);
             TabsWin = newwin(13, 30, 13, 0);
             row3Height = max_y - 26; // Update row3Height
             CommWin = newwin(row3Height, 30, 26, 0);
 
-            wrapBox(RightWin, AnimWin, TabsWin, CommWin);
-            drawFullView(TabsWin, RightWin, CommWin, data, selectedTab, selectedRecord);
-            wrapRefresh(RightWin, AnimWin, TabsWin, CommWin);
+            wrapBox(RecWin, AnimWin, TabsWin, CommWin);
+            drawFullView(AnimWin, TabsWin, RecWin, CommWin, data, selectedTab, selectedRecord, offset);
+            wrapRefresh(RecWin, AnimWin, TabsWin, CommWin);
         } else if (c == '\t') {
             selectedTab = (selectedTab + 1) % data.tabNames.size();
             selectedRecord = 1;
-            drawFullView(TabsWin, RightWin, CommWin, data, selectedTab, selectedRecord);
-            wrapRefresh(RightWin, TabsWin, CommWin);
+            drawFullView(AnimWin, TabsWin, RecWin, CommWin, data, selectedTab, selectedRecord, offset);
+            wrapRefresh(RecWin, TabsWin, CommWin);
         } else if (c == '`') {
             selectedTab = (selectedTab - 1 + data.tabNames.size()) % data.tabNames.size();
             selectedRecord = 1;
-            drawFullView(TabsWin, RightWin, CommWin, data, selectedTab, selectedRecord);
-            wrapRefresh(RightWin, TabsWin, CommWin);
+            drawFullView(AnimWin, TabsWin, RecWin, CommWin, data, selectedTab, selectedRecord, offset);
+            wrapRefresh(RecWin, TabsWin, CommWin);
         } else if (c == KEY_UP) {
             do {
                 selectedRecord = (selectedRecord - 1 + data.tabRecords[selectedTab].size()) % data.tabRecords[selectedTab].size();
             } while (data.tabRecords[selectedTab][selectedRecord].type == ' '); // Skip spacers
-            drawRecordsAndComments(RightWin, CommWin, data, selectedTab, selectedRecord);
-            wrapRefresh(RightWin, CommWin);
+            drawRecordsAndComments(RecWin, CommWin, data, selectedTab, selectedRecord, offset);
+            wrapRefresh(RecWin, CommWin);
         } else if (c == KEY_DOWN) {
             do {
                 selectedRecord = (selectedRecord + 1) % data.tabRecords[selectedTab].size();
             } while (data.tabRecords[selectedTab][selectedRecord].type == ' '); // Skip spacers
-            drawRecordsAndComments(RightWin, CommWin, data, selectedTab, selectedRecord);
-            wrapRefresh(RightWin, CommWin);
+            drawRecordsAndComments(RecWin, CommWin, data, selectedTab, selectedRecord, offset);
+            wrapRefresh(RecWin, CommWin);
         } else if (c == '\n') { // Enter key pressed
             if (data.tabRecords[selectedTab][selectedRecord].type == 'T') {
                 endwin(); // Exit ncurses mode permanently
@@ -358,7 +390,7 @@ int main() {
         }
     }
 
-    wrapDelete(RightWin, AnimWin, TabsWin, CommWin);
+    wrapDelete(RecWin, AnimWin, TabsWin, CommWin);
 
     endwin();
     return 0;
