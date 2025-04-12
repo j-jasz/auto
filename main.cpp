@@ -11,6 +11,72 @@
 #include <unordered_map>
 
 int offset = 0;
+int getColorPair(char type, bool isSelected);
+
+// Define color constants
+const short C_BG = 1;
+const short C_ANIM_FG = 2;
+const short C_MENU_FG = 3;
+const short C_SEL_TAB_BG = 4;
+const short C_TAB_FG = 5;
+const short C_COMM_FG = 6;
+const short C_REC_FG = 7;
+const short C_REC_BG = 8;
+const short C_S_FG = 9;
+const short C_T_FG = 10;
+const short C_C_FG = 11;
+const short C_SEC_FG = 12;
+const short C_COM_FG = 13;
+const short C_RED = 14;
+
+// Define color pair constants
+const short C_ANIM = 1;
+const short C_MENU = 2;
+const short C_TABS = 3;
+const short C_SEL_TAB = 4;
+const short C_COMM = 5;
+const short C_REC = 6;
+const short C_REC_S = 7;
+const short C_REC_T = 8;
+const short C_REC_C = 9;
+const short C_SEC = 10;
+const short C_SEL_COM = 11;
+const short C_COM = 12;
+
+void initColors() {
+    start_color(); // Enable color support
+    // bg
+    init_color(C_BG, 106, 106, 106);
+    // Anim
+    init_color(C_ANIM_FG, 324, 300, 246);
+    // Menu left
+    init_color(C_MENU_FG, 324, 300, 246);
+    init_color(C_SEL_TAB_BG, 78, 78, 78);
+    init_color(C_TAB_FG, 521, 482, 396);
+    init_color(C_COMM_FG, 324, 300, 246);
+    // Records
+    init_color(C_REC_FG, 521, 482, 396);
+    init_color(C_REC_BG, 156, 156, 156);
+    init_color(C_S_FG, 365, 255, 0);
+    init_color(C_T_FG, 455, 317, 0);
+    init_color(C_C_FG, 741, 561, 156);
+    init_color(C_SEC_FG, 780, 753, 682);
+    init_color(C_COM_FG, 650, 604, 494);
+    init_color(C_RED, 984, 286, 204);
+    // Initialize color pairs
+    init_pair(C_ANIM, C_ANIM_FG, C_BG);
+    init_pair(C_MENU, C_MENU_FG, C_BG);
+    init_pair(C_TABS, C_TAB_FG, C_BG);
+    init_pair(C_SEL_TAB, C_RED, C_SEL_TAB_BG);
+    init_pair(C_COMM, C_COMM_FG, C_BG);
+    init_pair(C_REC, C_REC_FG, C_REC_BG);
+    init_pair(C_REC_S, C_S_FG, C_REC_BG);
+    init_pair(C_REC_T, C_T_FG, C_REC_BG);
+    init_pair(C_REC_C, C_C_FG, C_REC_BG);
+    init_pair(C_SEC, C_SEC_FG, C_REC_BG);
+    init_pair(C_SEL_COM, C_RED, C_BG);
+    init_pair(C_COM, C_COM_FG, C_REC_BG);
+}
 
 // Get HOME EVVAR
 std::string getHomeDir() {
@@ -63,12 +129,14 @@ TabData initTabDataWithRecords(const std::vector<Record> &records) {
 // Function to draw Animation
 void drawAnim(WINDOW *AnimWin) {
     werase(AnimWin);
+    wbkgd(AnimWin, COLOR_PAIR(C_ANIM));
     box(AnimWin, 0, 0);
 }
 
 // Function to draw Tabs
 void drawTabs(WINDOW *TabsWin, const TabData &data, int selectedTab) {
     werase(TabsWin);
+    wbkgd(TabsWin, COLOR_PAIR(C_MENU));
     // Redraw borders
     box(TabsWin, 0, 0);
     // Define the column width and margin
@@ -79,13 +147,25 @@ void drawTabs(WINDOW *TabsWin, const TabData &data, int selectedTab) {
         int row = i % maxRows + 1; // Sequentially fill rows
         int col = (i / maxRows) * columnWidth + 4; // Move to next column after filling rows
         if (row > maxRows) break; // Stop if we exceed the window height
-        if (i == selectedTab) {
-            wattron(TabsWin, A_REVERSE); // Highlight selected tab
-        }
-        // Print tab name starting from row 1 to avoid overwriting borders
+        int colorPair = (i == selectedTab) ? C_SEL_TAB : C_TABS;
+        wattron(TabsWin, COLOR_PAIR(colorPair));
         mvwprintw(TabsWin, row, col, "%-7s", data.tabNames[i].c_str());
-        if (i == selectedTab) {
-            wattroff(TabsWin, A_REVERSE); // Remove highlight from selected tab
+        wattroff(TabsWin, COLOR_PAIR(colorPair));
+    }
+}
+
+// Helper function to get the color pair based on record type and selection status
+int getColorPair(char type, bool isSelected) {
+    if (isSelected) {
+        return C_SEL_COM;
+    } else {
+        switch (type) {
+            case 'S':
+                return C_REC_S;
+            case 'T':
+                return C_REC_T;
+            default:
+                return C_REC_C;
         }
     }
 }
@@ -99,6 +179,7 @@ void wrapAndPrintLabel(WINDOW *win, int lineIndex, int startX, int width, const 
             nextPos = label.size();
         }
         std::string line = label.substr(pos, nextPos - pos);
+        // Wrap the line if it exceeds the width
         if (line.size() > width) {
             // Split line into multiple parts if it's too long
             size_t splitPos = width;
@@ -115,11 +196,11 @@ void wrapAndPrintLabel(WINDOW *win, int lineIndex, int startX, int width, const 
         }
         // Print the line
         if (highlight) {
-            wattron(win, A_REVERSE); // Highlight if needed
+            wattron(win, COLOR_PAIR(C_SEL_COM));
         }
         mvwprintw(win, lineIndex, startX, "%s", line.c_str());
         if (highlight) {
-            wattroff(win, A_REVERSE); // Remove highlight
+            wattroff(win, COLOR_PAIR(C_SEL_COM));
         }
         // Move to next line if not at the end of the label
         if (pos < label.size()) {
@@ -132,7 +213,9 @@ void wrapAndPrintLabel(WINDOW *win, int lineIndex, int startX, int width, const 
 void drawRecords(WINDOW *RecWin, const TabData &data, int selectedTab, int selectedRecord, int offset) {
     // Clear the window's interior (not the borders)
     werase(RecWin);
+    wbkgd(RecWin, COLOR_PAIR(C_REC)); // Set background for this specific window
     box(RecWin, 0, 0); // Redraw borders
+
     // Calculate available width for text
     int width = getmaxx(RecWin) - 2; // Subtract 2 for border width
     int maxRows = getmaxy(RecWin) - 2; // Reserve last two rows
@@ -144,7 +227,11 @@ void drawRecords(WINDOW *RecWin, const TabData &data, int selectedTab, int selec
             // Check if we are near the bottom
             if (lineIndex >= maxRows) break;
 
+            // Print record type with appropriate color
+            int colorPair = getColorPair(data.tabRecords[selectedTab][i].type, i == selectedRecord);
+            wattron(RecWin, COLOR_PAIR(colorPair));
             mvwprintw(RecWin, lineIndex, 6, "[%c]  ", data.tabRecords[selectedTab][i].type);
+            wattroff(RecWin, COLOR_PAIR(colorPair));
 
             // Print record label
             std::string label = data.tabRecords[selectedTab][i].label;
@@ -153,7 +240,9 @@ void drawRecords(WINDOW *RecWin, const TabData &data, int selectedTab, int selec
 
             // Check for sufficient space to print the label
             if (width - labelStartX > 0) {
+                wattron(RecWin, COLOR_PAIR(C_COM));
                 wrapAndPrintLabel(RecWin, lineIndex, labelStartX, width - labelStartX, label, highlight);
+                wattroff(RecWin, COLOR_PAIR(C_COM));
 
                 // Move to the next line after printing a record
                 int linesUsed = std::ceil(label.size() / static_cast<double>(width - labelStartX));
@@ -174,7 +263,9 @@ void drawRecords(WINDOW *RecWin, const TabData &data, int selectedTab, int selec
 
             // Check for sufficient space to print the label
             if (width - labelStartX > 0) {
+                wattron(RecWin, COLOR_PAIR(C_SEC));
                 wrapAndPrintLabel(RecWin, lineIndex, labelStartX, width - labelStartX, label);
+                wattroff(RecWin, COLOR_PAIR(C_SEC));
 
                 // Move to the next line after printing a record
                 int linesUsed = std::ceil(label.size() / static_cast<double>(width - labelStartX));
@@ -194,6 +285,7 @@ void drawRecords(WINDOW *RecWin, const TabData &data, int selectedTab, int selec
 void drawComments(WINDOW *CommWin, const TabData &data, int selectedTab, int selectedRecord) {
     // Clear the window's interior (not the borders)
     werase(CommWin);
+    wbkgd(CommWin, COLOR_PAIR(C_COMM)); // Set background for this specific window
     // Redraw borders
     box(CommWin, 0, 0);
     // Get the dimensions of the window
@@ -249,6 +341,7 @@ void drawRecordsAndComments(WINDOW* RecWin, WINDOW* CommWin, TabData& data, int 
 
 int main() {
     initscr();
+    initColors();
     noecho();
     cbreak();
     keypad(stdscr, TRUE);
