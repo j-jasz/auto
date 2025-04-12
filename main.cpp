@@ -306,13 +306,25 @@ int main() {
             wrapBox(RecWin, AnimWin, TabsWin, CommWin);
             drawFullView(AnimWin, TabsWin, RecWin, CommWin, data, selectedTab, selectedRecord, offset);
             wrapRefresh(RecWin, AnimWin, TabsWin, CommWin);
+        // For the tab key
         } else if (c == '\t') {
-            selectedTab = (selectedTab + 1) % data.tabNames.size();
+            if (selectedTab == data.tabNames.size() - 1) {
+                // Move to the first tab
+                selectedTab = 0;
+            } else {
+                selectedTab++;
+            }
             selectedRecord = 1;
             drawFullView(AnimWin, TabsWin, RecWin, CommWin, data, selectedTab, selectedRecord, offset);
             wrapRefresh(RecWin, TabsWin, CommWin);
+        // For the backtick (`) key
         } else if (c == '`') {
-            selectedTab = (selectedTab - 1 + data.tabNames.size()) % data.tabNames.size();
+            if (selectedTab == 0) {
+                // Move to the last tab
+                selectedTab = data.tabNames.size() - 1;
+            } else {
+                selectedTab--;
+            }
             selectedRecord = 1;
             drawFullView(AnimWin, TabsWin, RecWin, CommWin, data, selectedTab, selectedRecord, offset);
             wrapRefresh(RecWin, TabsWin, CommWin);
@@ -320,37 +332,67 @@ int main() {
             do {
                 selectedRecord = (selectedRecord - 1 + data.tabRecords[selectedTab].size()) % data.tabRecords[selectedTab].size();
             } while (data.tabRecords[selectedTab][selectedRecord].type == ' '); // Skip spacers
+            // Check if we are at the first record in the list
+            if (selectedRecord == 1) {
+                // Scroll up by two lines if possible
+                if (offset > 1) {
+                    offset -= 2;
+                } else {
+                    offset = 0; // Ensure offset doesn't go negative
+                }
+            } else {
+                // Adjust offset to ensure selectedRecord is visible
+                if (selectedRecord < offset) {
+                    offset = selectedRecord; // Scroll up to show the selected record
+                } else if (selectedRecord >= offset + (getmaxy(RecWin) - 4)) {
+                    offset = selectedRecord - (getmaxy(RecWin) - 4) + 1; // Adjust for top and bottom reserved rows
+                }
+            }
             drawRecordsAndComments(RecWin, CommWin, data, selectedTab, selectedRecord, offset);
             wrapRefresh(RecWin, CommWin);
         } else if (c == KEY_DOWN) {
             do {
                 selectedRecord = (selectedRecord + 1) % data.tabRecords[selectedTab].size();
             } while (data.tabRecords[selectedTab][selectedRecord].type == ' '); // Skip spacers
+            // Adjust offset to ensure selectedRecord is visible
+            if (selectedRecord >= offset + (getmaxy(RecWin) - 4)) {
+                offset = selectedRecord - (getmaxy(RecWin) - 4) + 1; // Scroll down to show the selected record
+            } else if (selectedRecord < offset) {
+                offset = selectedRecord; // Adjust for reverse scrolling
+            }
+            if (selectedRecord == 1) {
+                offset = std::max(0, offset - 1); // Move offset up by one line
+            }
             drawRecordsAndComments(RecWin, CommWin, data, selectedTab, selectedRecord, offset);
             wrapRefresh(RecWin, CommWin);
         } else if (c == '\n') { // Enter key pressed
             if (data.tabRecords[selectedTab][selectedRecord].type == 'T') {
                 endwin(); // Exit ncurses mode permanently
-                std::cout << std::endl; // Print empty line
                 std::string command = data.tabRecords[selectedTab][selectedRecord].command;
-                // Create a script in /tmp
-                std::string scriptPath = "/tmp/ncurses_script.sh";
+                std::cout << std::endl; // Print empty line
+                // Create a script in ~/.temp
+                std::string scriptPath = getHomeDir() + "/.temp/ncurses_script.sh";
                 std::ofstream scriptFile(scriptPath);
 
                 if (scriptFile.is_open()) {
                     // Write the script content
                     scriptFile << "#!/bin/bash\n";
-                    scriptFile << "text=\"" << command << "\"\n";
-                    scriptFile << "read -e -p \"\" -i \"$text\" edited_text\n";
-                    scriptFile << "eval \"$edited_text\"\n";
+                    // Use wrapper to capture command history
+                    scriptFile << "wrapper() {\n";
+                    scriptFile << "    text=\"$1\"\n";
+                    scriptFile << "    read -e -p \"\" -i \"$text\" edited_text\n";
+                    scriptFile << "    echo \"$edited_text\" >> ~/.bash_history\n"; // Append edited command to history
+                    scriptFile << "    eval \"$edited_text\"\n"; // Execute the command
+                    scriptFile << "}\n";
+                    scriptFile << "wrapper \"" << command << "\"\n"; // Call the wrapper function
                     scriptFile << "exit\n";  // Ensure the shell exits cleanly after execution
                     scriptFile.close();
                     // Make the script executable
                     std::string chmodCmd = "chmod +x " + scriptPath;
                     system(chmodCmd.c_str());
                     // Run the script
-                    std::string runCmd = "./" + scriptPath.substr(scriptPath.find_last_of('/') + 1);
-                    system(("cd /tmp && " + runCmd).c_str());
+                    std::string runCmd = scriptPath;
+                    system(runCmd.c_str());
                     // Remove the script
                     std::string rmCmd = "rm " + scriptPath;
                     system(rmCmd.c_str());
