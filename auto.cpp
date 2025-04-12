@@ -1,5 +1,7 @@
 #include "records.hpp"
 #include "draw.hpp"
+#include "utils.hpp"
+#include "script_utils.hpp"
 #include "colors.hpp"
 
 #include <ncurses.h>
@@ -14,11 +16,9 @@
 
 int offset = 0;
 
-// Get HOME EVVAR
-std::string getHomeDir() {
-    const char* homeDir = std::getenv("HOME");
-    return homeDir ? std::string(homeDir) : std::string();
-}
+std::string homeDirectory = getHomeDir();
+std::ofstream scriptFile;
+std::string scriptPath;
 
 std::vector<Record> allRecords = getAllRecords();
 
@@ -200,32 +200,10 @@ int main() {
                 endwin(); // Exit ncurses mode permanently
                 std::string command = data.tabRecords[selectedTab][selectedRecord].command;
                 std::cout << std::endl; // Print empty line
-
-                // Create a script in ~/.temp
-                std::string scriptPath = getHomeDir() + "/.temp/ncurses_script.sh";
-                std::ofstream scriptFile(scriptPath);
+                createScriptFile(scriptFile, scriptPath);
                 if (scriptFile.is_open()) {
-                    // Write the script content
-                    scriptFile << "#!/bin/bash\n";
-                    // Use wrapper to capture command history
-                    scriptFile << "wrapper() {\n";
-                    scriptFile << "    text=\"$1\"\n";
-                    scriptFile << "    read -e -p \"\" -i \"$text\" edited_text\n";
-                    scriptFile << "    echo \"$edited_text\" >> ~/.bash_history\n"; // Append edited command to history
-                    scriptFile << "    eval \"$edited_text\"\n"; // Execute the command
-                    scriptFile << "}\n";
-                    scriptFile << "wrapper \"" << command << "\"\n"; // Call the wrapper function
-                    scriptFile << "exit\n";  // Ensure the shell exits cleanly after execution
-                    scriptFile.close();
-                    // Make the script executable
-                    std::string chmodCmd = "chmod +x " + scriptPath;
-                    system(chmodCmd.c_str());
-                    // Run the script
-                    std::string runCmd = scriptPath;
-                    system(runCmd.c_str());
-                    // Remove the script
-                    std::string rmCmd = "rm " + scriptPath;
-                    system(rmCmd.c_str());
+                    appendBashHistoryT(scriptFile, command);
+                    executeAndRemoveScript(scriptPath);
                 } else {
                     std::cerr << "Failed to create script file." << std::endl;
                 }
@@ -234,26 +212,10 @@ int main() {
                 endwin(); // Exit ncurses mode
                 std::string command = data.tabRecords[selectedTab][selectedRecord].command;
                 system(command.c_str()); // Execute the command in the terminal
-
-                // Create a script in ~/.temp
-                std::string scriptPath = getHomeDir() + "/.temp/append_script.sh";
-                std::ofstream scriptFile(scriptPath);
+                createScriptFile(scriptFile, scriptPath);
                 if (scriptFile.is_open()) {
-                    // Write the script content
-                    scriptFile << "#!/bin/bash\n";
-                    scriptFile << "echo \"" << command << "\" >> ~/.bash_history\n";
-                    scriptFile << "history -a\n";
-                    scriptFile << "exit\n";
-                    scriptFile.close();
-                    // Make the script executable
-                    std::string chmodCmd = "chmod +x " + scriptPath;
-                    system(chmodCmd.c_str());
-                    // Run the script
-                    std::string runCmd = scriptPath;
-                    system(runCmd.c_str());
-                    // Remove the script
-                    std::string rmCmd = "rm " + scriptPath;
-                    system(rmCmd.c_str());
+                    appendBashHistoryC(scriptFile, command);
+                    executeAndRemoveScript(scriptPath);
                 } else {
                     std::cerr << "Failed to create script file." << std::endl;
                 }
