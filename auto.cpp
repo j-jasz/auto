@@ -221,7 +221,16 @@ int main() {
 
         } else if (c == '\n') { // Enter key pressed
 
-            if (data.tabRecords[selectedTab][selectedRecord].type == 'T') {
+            if (data.tabRecords[selectedTab][selectedRecord].type == 'S') { // Scripts
+                endwin(); // Exit ncurses mode permanently
+                std::cout << std::endl; // Print empty line
+                std::string command = data.tabRecords[selectedTab][selectedRecord].command;
+                std::string fullCommand = "export PATH=$PATH; " + command;
+                system(fullCommand.c_str());
+
+                return 0; // Exit the program
+
+            } else if (data.tabRecords[selectedTab][selectedRecord].type == 'T') { // Templates
 
                 endwin(); // Exit ncurses mode permanently
                 std::string command = data.tabRecords[selectedTab][selectedRecord].command;
@@ -239,7 +248,7 @@ int main() {
 
                 return 0; // Exit the program
 
-            } else { // Execute command directly for non-template tabs
+            } else { // Commands
 
                 endwin(); // Exit ncurses mode
                 std::string command = data.tabRecords[selectedTab][selectedRecord].command;
