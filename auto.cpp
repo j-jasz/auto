@@ -15,53 +15,50 @@
 #include <unordered_map>
 #include <vector>
 
+#include <unistd.h>
+#include <sys/wait.h>
+#include <cerrno>
+
 int offset = 0;
 
 std::string homeDirectory = getHomeDir();
 std::ofstream scriptFile;
 std::string scriptPath;
 
+// Fetching all the records from an external source or function
 std::vector<Record> allRecords = getAllRecords();
-
-int determineNumTabs(const std::vector<Record> &records) {
-    std::unordered_map<std::string, int> tabIndices;
-    int numTabs = 0;
-    for (const auto &record : records) {
-        if (tabIndices.find(record.tab) == tabIndices.end()) {
-            tabIndices[record.tab] = numTabs++;
-        }
-    }
-    return numTabs;
-}
-
-TabData initTabData(int numTabs) {
-    TabData data;
-    data.tabNames.resize(numTabs);
-    data.tabRecords.resize(numTabs);
-    return data;
-}
-
-void assignRecordsToTabs(TabData &data, const std::vector<Record> &records, const std::unordered_map<std::string, int> &tabIndices) {
-    for (const auto &record : records) {
-        int tabIndex = tabIndices.at(record.tab);
-        data.tabRecords[tabIndex].push_back(record);
-    }
-}
-
+/**
+ * @brief Initializes TabData with records categorized by their 'tab' field.
+ * This function takes a vector of records, groups them based on the 'tab' field of the Record,
+ * and organizes them into a TabData structure. Each unique 'tab' value will have its own list
+ * of records within the TabData.
+ * @param records The vector of records to categorize.
+ * @return TabData The TabData object populated with categorized records.
+ */
 TabData initTabDataWithRecords(const std::vector<Record> &records) {
+    // TabData object that will hold the categorized data
+    TabData data;
+    // Map to associate each unique 'tab' string to a unique index in the tabRecords vector
     std::unordered_map<std::string, int> tabIndices;
-    int numTabs = determineNumTabs(records);
-    TabData data = initTabData(numTabs);
-    int tabIndex = 0;
+    // Loop over each record to categorize them by their 'tab' field
     for (const auto &record : records) {
+        // If the 'tab' value does not exist in the tabIndices map, it's a new tab
         if (tabIndices.find(record.tab) == tabIndices.end()) {
-            tabIndices[record.tab] = tabIndex++;
-            data.tabNames[tabIndices[record.tab]] = record.tab;
+            // Assign a new index to this tab and store it in the map
+            int index = tabIndices.size();
+            tabIndices[record.tab] = index;
+            // Add the tab name to the list of tab names
+            data.tabNames.push_back(record.tab);
+            // Initialize an empty vector for this tab's records
+            data.tabRecords.emplace_back(); // one vector per tab
         }
+        // Add the current record to the appropriate tab's vector in tabRecords
+        data.tabRecords[tabIndices[record.tab]].push_back(record);
     }
-    assignRecordsToTabs(data, records, tabIndices);
+    // Return the populated TabData structure
     return data;
 }
+
 
 // Templates and wrapper functions
 template<typename... Args>
