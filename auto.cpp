@@ -228,12 +228,53 @@ int main() {
 
         } else if (c == '\n') { // Enter key pressed
 
-            if (data.tabRecords[selectedTab][selectedRecord].type == 'S') { // Scripts
-                endwin(); // Exit ncurses mode permanently
-                std::cout << std::endl; // Print empty line
+            if (data.tabRecords[selectedTab][selectedRecord].type == 'S') { // Check if the record type is 'S' (for Script)
+                endwin(); // Exit ncurses mode permanently before executing the script
+
+                // Get the command string from the selected record
                 std::string command = data.tabRecords[selectedTab][selectedRecord].command;
-                std::string fullCommand = "export PATH=$PATH; " + command;
-                system(fullCommand.c_str());
+
+                // Fork a new process to run the script
+                pid_t pid = fork();
+                if (pid == -1) {
+                    // If fork fails, print error and exit
+                    perror("fork failed");
+                    exit(EXIT_FAILURE);
+                } else if (pid == 0) {
+                    // ---- Child process ----
+                    // Get and set necessary environment variables for the Xfce session
+                    const char *display = getenv("DISPLAY");
+                    const char *dbus = getenv("DBUS_SESSION_BUS_ADDRESS");
+                    const char *xdg_runtime_dir = getenv("XDG_RUNTIME_DIR");
+                    const char *xauth = getenv("XAUTHORITY");
+
+                    // Set environment variables if they are present
+                    if (display) setenv("DISPLAY", display, 1);
+                    if (dbus) setenv("DBUS_SESSION_BUS_ADDRESS", dbus, 1);
+                    if (xdg_runtime_dir) setenv("XDG_RUNTIME_DIR", xdg_runtime_dir, 1);
+                    if (xauth) setenv("XAUTHORITY", xauth, 1);
+
+                    // Execute the command via the shell (`/bin/sh`) to handle shell-specific syntax (pipes, redirects, etc.)
+                    // This allows the command to be interpreted like it would be in a terminal.
+                    execl("/bin/sh", "sh", "-c", command.c_str(), (char *)nullptr);
+
+                    // If exec fails, this code will be executed
+                    perror(("Failed to execute: " + command).c_str());
+                    _exit(EXIT_FAILURE); // Exit the child process with a failure status
+                } else {
+                    // ---- Parent process ----
+                    // Parent waits for the child process to finish
+                    int status;
+                    // Handle interrupted system calls (EINTR)
+                    while (waitpid(pid, &status, 0) == -1 && errno == EINTR);
+
+                    // Check if the child process exited normally
+                    if (WIFEXITED(status)) {
+                        std::cout << "Script exited with status " << WEXITSTATUS(status) << "\n";
+                    } else {
+                        std::cout << "Script terminated abnormally\n";
+                    }
+                }
 
                 return 0; // Exit the program
 
@@ -244,14 +285,16 @@ int main() {
                 std::cout << std::endl; // Print empty line
                 createScriptFile(scriptFile, scriptPath);
 
-                if (scriptFile.is_open()) {
+		// Immediately check if file creation succeeded
+		if (!scriptFile.is_open()) {
+		    endwin(); // Ensure curses is shut down properly
+		    std::cerr << "Error: Could not open script file at path " << scriptPath << std::endl;
+		    return 1; // Abort the program early
+		}
 
-                    appendBashHistoryT(scriptFile, command);
-                    executeAndRemoveScript(scriptPath);
-
-                } else {
-                    std::cerr << "Failed to create script file." << std::endl;
-                }
+		// Only continue if valid
+		appendBashHistoryT(scriptFile, command);
+		executeAndRemoveScript(scriptPath);
 
                 return 0; // Exit the program
 
@@ -262,14 +305,16 @@ int main() {
                 system(command.c_str()); // Execute the command in the terminal
                 createScriptFile(scriptFile, scriptPath);
 
-                if (scriptFile.is_open()) {
+		// Immediately check if file creation succeeded
+		if (!scriptFile.is_open()) {
+		    endwin(); // Ensure curses is shut down properly
+		    std::cerr << "Error: Could not open script file at path " << scriptPath << std::endl;
+		    return 1; // Abort the program early
+		}
 
-                    appendBashHistoryC(scriptFile, command);
-                    executeAndRemoveScript(scriptPath);
-
-                } else {
-                    std::cerr << "Failed to create script file." << std::endl;
-                }
+		// Only continue if valid
+		appendBashHistoryC(scriptFile, command);
+		executeAndRemoveScript(scriptPath);
 
                 return 0; // Exit the program
             }
