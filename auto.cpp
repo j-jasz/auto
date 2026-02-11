@@ -117,26 +117,36 @@ int main() {
     int c;
     while ((c = getch()) != 'q') {
 
-        if (c == KEY_RESIZE) {
-            // Handle resize
-            endwin(); // End curses mode temporarily
-            refresh(); // Refresh to get new terminal size
-            initscr(); // Restart curses mode
+	if (c == KEY_RESIZE) {
+	    // Handle resize
+	    endwin();   // End curses mode temporarily
+	    refresh();  // Refresh to get new terminal size
+	    initscr();  // Restart curses mode
 
-            // Get new terminal dimensions
-            getmaxyx(stdscr, max_y, max_x);
-            // Recreate windows with new dimensions
-            wrapDelete(RecWin, AnimWin, TabsWin, CommWin);
+	    // Get new terminal dimensions
+	    getmaxyx(stdscr, max_y, max_x);
 
-            RecWin = newwin(max_y, max_x - 30, 0, 30);
-            AnimWin = newwin(13, 30, 0, 0);
-            TabsWin = newwin(13, 30, 13, 0);
-            row3Height = max_y - 26; // Update row3Height
-            CommWin = newwin(row3Height, 30, 26, 0);
+	    // Recompute row3Height using a const local expression
+	    const int newRow3Height = max_y - 26;
 
-            wrapBox(RecWin, AnimWin, TabsWin, CommWin);
-            drawFullView(AnimWin, TabsWin, RecWin, CommWin, data, selectedTab, selectedRecord, offset);
-            wrapRefresh(RecWin, AnimWin, TabsWin, CommWin);
+	    // Only recreate windows if size actually changed
+	    static int prev_max_y = 0;
+	    static int prev_max_x = 0;
+	    if (max_y != prev_max_y || max_x != prev_max_x) {
+		prev_max_y = max_y;
+		prev_max_x = max_x;
+
+		wrapDelete(RecWin, AnimWin, TabsWin, CommWin);
+
+		RecWin = newwin(max_y, max_x - 30, 0, 30);
+		AnimWin = newwin(13, 30, 0, 0);
+		TabsWin = newwin(13, 30, 13, 0);
+		CommWin = newwin(newRow3Height, 30, 26, 0);
+
+		wrapBox(RecWin, AnimWin, TabsWin, CommWin);
+		drawFullView(AnimWin, TabsWin, RecWin, CommWin, data, selectedTab, selectedRecord, offset);
+		wrapRefresh(RecWin, AnimWin, TabsWin, CommWin);
+	    }
 
         // For the tab key
         } else if (c == '\t') {
